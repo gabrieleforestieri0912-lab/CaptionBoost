@@ -1,0 +1,39 @@
+# https://www.robotstxt.org/robotstxt.html
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: https://subverse.it/sitemap.xml
+
+# Crawl-delay
+Crawl-delay: 10
+
+# Block extension files
+Disallow: /extension/
+
+# Block admin paths
+Disallow: /api/
+Disallow: /_next/
+
+# Block auth pages for production
+User-agent: *
+Disallow: /login
+Disallow: /signup
+Disallow: /settings
+
+# Allow all for main pages
+User-agent: *
+Allow: /
+Allow: /pricing
+
+# Googlebot specific
+User-agent: Googlebot
+Allow: /
+
+# Bingbot specific
+User-agent: Bingbot
+Allow: /
+
+# AdsBot-Google
+User-agent: AdsBot-Google
+Allow: /pricing
