@@ -1,6 +1,7 @@
 /**
  * Translation Module - Traduzione intelligente con context-awareness
- * Utilizza Llama3 per comprendere il contesto e tradurre accuratamente
+ * Utilizza Ollama con deepseek-r1 (o il motore AI configurato) per comprendere
+ * il contesto e tradurre accuratamente
  */
 
 const SUPPORTED_LANGUAGES = {
@@ -30,7 +31,7 @@ const SUPPORTED_LANGUAGES = {
  * Classe per gestire la traduzione intelligente
  */
 class IntelligentTranslator {
-  constructor(targetLanguage = "it", modelName = "llama3") {
+  constructor(targetLanguage = "it", modelName = "deepseek-r1") {
     this.targetLanguage = targetLanguage;
     this.modelName = modelName;
     this.llama3Api = "http://localhost:11434/api/generate";
@@ -64,7 +65,6 @@ Rispondi in JSON con: { "genre": "...", "tone": "...", "topics": [...], "termino
         this.contextCache.set(cacheKey, parsed);
         return parsed;
       } catch (e) {
-        console.log("📊 Contesto analizzato (formato testo)");
         return {
           genre: "general",
           tone: "neutral",
@@ -182,6 +182,7 @@ Traduzione:`;
           model: this.modelName,
           prompt: prompt,
           stream: false,
+          think: false, // disattiva il ragionamento dei modelli reasoning (deepseek-r1)
           temperature: temperature,
           top_p: 0.95,
           top_k: 40,

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
+import { useAuth } from "@/components/AuthProvider";
 import Link from "next/link";
 import Image from "next/image";
 import { motion } from "framer-motion";
@@ -58,7 +58,7 @@ interface Subtitle {
 
 export default function AccountPage() {
   const router = useRouter();
-  const { data: session, status } = useSession();
+  const { status } = useAuth();
   const { language, changeLanguage } = useLanguage();
   const [subtitles, setSubtitles] = useState<Subtitle[]>([]);
   const [loading, setLoading] = useState(true);
@@ -68,6 +68,7 @@ export default function AccountPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [showLangMenu, setShowLangMenu] = useState(false);
   const langMenuRef = useRef<HTMLDivElement>(null);
+
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -188,7 +189,7 @@ export default function AccountPage() {
                         }}
                         className={`w-full text-left px-4 py-2 text-sm font-medium transition-colors ${
                           language === lang.code
-                            ? "text-primary bg-sky-50"
+                            ? "text-primary bg-primary-50"
                             : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
                         }`}
                       >
@@ -233,7 +234,7 @@ export default function AccountPage() {
             animate={{ opacity: 1, y: 0 }}
             className="text-center py-20"
           >
-            <div className="w-20 h-20 rounded-2xl bg-sky-50 flex items-center justify-center mx-auto mb-6">
+            <div className="w-20 h-20 rounded-2xl bg-primary-50 flex items-center justify-center mx-auto mb-6">
               <Subtitles className="w-10 h-10 text-primary" />
             </div>
             <h2 className="text-2xl font-bold text-slate-900 mb-2">
@@ -308,7 +309,7 @@ export default function AccountPage() {
                         <div className="flex items-center gap-1 shrink-0">
                           <button
                             onClick={() => handleExport(sub)}
-                            className="p-2 rounded-lg text-slate-400 hover:text-primary hover:bg-sky-50 transition-all"
+                            className="p-2 rounded-lg text-slate-400 hover:text-primary hover:bg-primary-50 transition-all"
                             title="Esporta SRT"
                           >
                             <Download className="w-4 h-4" />
@@ -318,7 +319,7 @@ export default function AccountPage() {
                               href={sub.videoUrl}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="p-2 rounded-lg text-slate-400 hover:text-primary hover:bg-sky-50 transition-all"
+                              className="p-2 rounded-lg text-slate-400 hover:text-primary hover:bg-primary-50 transition-all"
                               title="Apri video"
                             >
                               <ExternalLink className="w-4 h-4" />

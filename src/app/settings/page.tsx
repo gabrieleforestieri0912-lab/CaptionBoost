@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
+import { useAuth } from "@/components/AuthProvider";
 import { motion } from "framer-motion";
 import {
   ArrowLeft,
@@ -39,7 +39,7 @@ interface Feedback {
 
 export default function SettingsPage() {
   const router = useRouter();
-  const { status } = useSession();
+  const { status } = useAuth();
   const { language, changeLanguage, t } = useLanguage();
 
   const [profile, setProfile] = useState<Profile>({ name: "", email: "", hasPassword: false });
@@ -207,7 +207,7 @@ export default function SettingsPage() {
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mb-6 flex items-center gap-2 p-4 bg-sky-50 border border-sky-200 text-primary rounded-xl text-sm"
+            className="mb-6 flex items-center gap-2 p-4 bg-primary-50 border border-primary-200 text-primary rounded-xl text-sm"
           >
             {message}
           </motion.div>
@@ -215,7 +215,7 @@ export default function SettingsPage() {
 
         <div className="bg-white rounded-2xl border border-slate-100 p-6 sm:p-8 mb-6 shadow-sm hover:shadow-md hover:border-primary/20 transition-all duration-300">
           <div className="flex items-center gap-3 mb-6">
-            <div className="w-10 h-10 rounded-xl bg-sky-50 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-xl bg-primary-50 flex items-center justify-center">
               <User className="w-5 h-5 text-primary" />
             </div>
             <div>
@@ -265,7 +265,7 @@ export default function SettingsPage() {
 
         <div className="bg-white rounded-2xl border border-slate-100 p-6 sm:p-8 mb-6 shadow-sm hover:shadow-md hover:border-primary/20 transition-all duration-300">
           <div className="flex items-center gap-3 mb-6">
-            <div className="w-10 h-10 rounded-xl bg-sky-50 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-xl bg-primary-50 flex items-center justify-center">
               <Globe className="w-5 h-5 text-primary" />
             </div>
             <div>
@@ -285,7 +285,7 @@ export default function SettingsPage() {
                 <option value="en">English</option>
               </select>
             </div>
-            <div className="flex items-center gap-2 px-4 py-3 bg-sky-50 rounded-xl text-sm text-primary font-medium">
+            <div className="flex items-center gap-2 px-4 py-3 bg-primary-50 rounded-xl text-sm text-primary font-medium">
               <span className="text-lg">{language === "it" ? "🇮🇹" : "🇬🇧"}</span>
               {language === "it" ? "Italiano" : "English"}
             </div>
@@ -294,7 +294,7 @@ export default function SettingsPage() {
 
         <div className="bg-white rounded-2xl border border-slate-100 p-6 sm:p-8 mb-6 shadow-sm hover:shadow-md hover:border-primary/20 transition-all duration-300">
           <div className="flex items-center gap-3 mb-6">
-            <div className="w-10 h-10 rounded-xl bg-sky-50 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-xl bg-primary-50 flex items-center justify-center">
               <Lock className="w-5 h-5 text-primary" />
             </div>
             <div>
@@ -367,7 +367,7 @@ export default function SettingsPage() {
 
         <div className="bg-white rounded-2xl border border-slate-100 p-6 sm:p-8 shadow-sm hover:shadow-md hover:border-primary/20 transition-all duration-300">
           <div className="flex items-center gap-3 mb-6">
-            <div className="w-10 h-10 rounded-xl bg-sky-50 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-xl bg-primary-50 flex items-center justify-center">
               <MessageSquare className="w-5 h-5 text-primary" />
             </div>
             <div>
@@ -380,7 +380,7 @@ export default function SettingsPage() {
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="p-6 bg-sky-50 border border-sky-200 rounded-xl text-center"
+              className="p-6 bg-primary-50 border border-primary-200 rounded-xl text-center"
             >
               <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-3">
                 <Send className="w-6 h-6 text-primary" />

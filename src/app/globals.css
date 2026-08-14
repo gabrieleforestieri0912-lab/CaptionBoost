@@ -4,7 +4,7 @@
   --background: #ffffff;
   --foreground: #0f172a;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
-  --primary: lab(36.9089% 35.0961 -85.6872);
+  --primary: #4C94FF;
 }
 
 @theme inline {
@@ -12,6 +12,10 @@
   --color-foreground: var(--foreground);
   --font-mono: var(--font-mono);
   --color-primary: var(--primary);
+  --color-primary-dark: #3A7BE0;
+  --color-primary-50: #EDF4FF;
+  --color-primary-100: #D9E9FF;
+  --color-primary-200: #B7D4FF;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -32,12 +36,12 @@ html {
 }
 
 .text-muted-blue {
-  color: #5f8a9e;
+  color: #5884C5;
 }
 
 * {
   scrollbar-width: thin;
-  scrollbar-color: lab(36.9089% 35.0961 -85.6872 / 0.2) rgba(0, 0, 0, 0.05);
+  scrollbar-color: rgb(76 148 255 / 0.2) rgba(0, 0, 0, 0.05);
 }
 
 ::-webkit-scrollbar {
@@ -51,10 +55,10 @@ html {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: lab(36.9089% 35.0961 -85.6872 / 0.3);
+  background: rgb(76 148 255 / 0.3);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: lab(36.9089% 35.0961 -85.6872 / 0.5);
+  background: rgb(76 148 255 / 0.5);
 }

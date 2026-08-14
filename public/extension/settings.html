@@ -7,9 +7,9 @@
   <style>
     body {
       margin: 0;
-      font-family: "JetBrains Mono", "JetBrains Mono Fallback", monospace;
-      background: #f4f8ff;
-      color: #1f2937;
+      font-family: "JetBrains Mono", "JetBrains Mono Fallback", ui-monospace, monospace;
+      background: #ffffff;
+      color: #0f172a;
     }
 
     .container {
@@ -20,7 +20,7 @@
 
     .card {
       background: #fff;
-      border: 1px solid #dbe7f5;
+      border: 1px solid #e2e8f0;
       border-radius: 12px;
       padding: 16px;
       margin-bottom: 14px;
@@ -30,6 +30,7 @@
       margin-top: 0;
       margin-bottom: 16px;
       font-size: 22px;
+      letter-spacing: -0.02em;
     }
 
     h2 {
@@ -54,10 +55,19 @@
 
     input, select {
       font-size: 13px;
+      font-family: inherit;
       padding: 8px 10px;
-      border: 1px solid #cfd9e8;
-      border-radius: 8px;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
       box-sizing: border-box;
+      background: #fff;
+      color: #0f172a;
+    }
+
+    input:focus, select:focus {
+      outline: none;
+      border-color: #4C94FF;
+      box-shadow: 0 0 0 3px rgba(0, 77, 229, 0.12);
     }
 
     .inline {
@@ -69,16 +79,23 @@
 
     .save-btn {
       border: none;
-      border-radius: 8px;
-      background: #0066cc;
+      border-radius: 10px;
+      background: #4C94FF;
       color: white;
       padding: 10px 16px;
       font-weight: 600;
+      font-family: inherit;
       cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .save-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 10px rgba(0, 77, 229, 0.25);
     }
 
     .saved {
-      color: #0f7a3a;
+      color: #15803d;
       font-size: 13px;
       display: none;
     }
@@ -87,6 +104,43 @@
 <body>
   <div class="container">
     <h1>Settings</h1>
+
+    <div class="card">
+      <h2>🤖 Motore Traduzione AI & API Key</h2>
+      <div class="row">
+        <label for="aiEngine">Modalità AI</label>
+        <select id="aiEngine">
+          <option value="cloud">🌐 Server (predefinito: Ollama deepseek-r1 · API Key opzionale)</option>
+          <option value="custom_key">🔑 API Key Personalizzata (modello più adatto per provider)</option>
+          <option value="ollama">💻 Ollama Locale (deepseek-r1)</option>
+        </select>
+      </div>
+
+      <div class="row" id="providerRow">
+        <label for="aiProvider">Provider AI</label>
+        <select id="aiProvider">
+          <option value="openai">OpenAI (GPT-4o Mini / GPT-4o)</option>
+          <option value="gemini">Google Gemini (Gemini 2.0 Flash)</option>
+          <option value="groq">Groq (Llama 3.3 70B Cloud)</option>
+          <option value="anthropic">Anthropic (Claude 3.5 Haiku)</option>
+          <option value="deepl">DeepL API</option>
+        </select>
+      </div>
+
+      <div class="row" id="apiKeyRow">
+        <label for="apiKey">API Key (se si usa API Key personalizzata)</label>
+        <div style="display:flex;gap:8px;">
+          <input id="apiKey" type="password" placeholder="sk-proj-..." style="flex:1;font-family:monospace">
+          <button type="button" id="toggleApiKeyVisibility" class="save-btn" style="background:#64748b;padding:6px 12px;font-size:12px;">Mostra</button>
+        </div>
+      </div>
+
+      <div class="row" id="modelRow">
+        <label for="model">Modello (opzionale)</label>
+        <input id="model" type="text" placeholder="deepseek-r1">
+      </div>
+
+    </div>
 
     <div class="card">
       <h2>YouTube API Key</h2>
@@ -221,7 +275,7 @@
       <p style="font-size:13px;color:#555;line-height:1.5;margin:0 0 8px;">
         Hai un problema urgente? I nostri utenti Pro ricevono supporto prioritario via email con risposta entro 24 ore.
       </p>
-      <a href="https://captionboost.it/support" target="_blank" style="font-size:13px;color:#0066cc;">Contatta il supporto &rarr;</a>
+      <a href="https://captionboost.it/support" target="_blank" style="font-size:13px;color:#4C94FF;">Contatta il supporto &rarr;</a>
     </div>
 
     <div class="inline">

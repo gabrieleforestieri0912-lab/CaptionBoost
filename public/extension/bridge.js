@@ -1,5 +1,4 @@
 // Bridge content script - runs on the web app to relay captions from YouTube via the extension
-console.log('🌉 CaptionBoost Bridge Loaded');
 
 let pendingRequests = new Map();
 let requestIdCounter = 0;

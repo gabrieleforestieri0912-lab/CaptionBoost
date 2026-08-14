@@ -17,7 +17,7 @@ export default function LeadCapture() {
         >
 
           <div className="relative z-10">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-sky-50 border border-sky-200/50 rounded-full text-xs font-medium text-primary mb-3">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-primary-50 border border-primary-200/50 rounded-full text-xs font-medium text-primary mb-3">
               <Sparkles className="w-3.5 h-3.5" />
               <span>Prova gratuita</span>
             </div>

@@ -1,17 +1,28 @@
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth-options'
 import { findUserById, verifyToken } from '@/lib/db'
+import { createServerSupabase } from '@/lib/supabase-server'
+import { ensureUserProfile } from '@/lib/auth'
 import type { User } from '@/lib/types'
 
+/**
+ * Restituisce l'utente autenticato.
+ * 1) Sessione Supabase Auth (cookie di sessione nel browser).
+ * 2) Fallback: token Bearer JWT (estensione / client API).
+ */
 export async function getAuthenticatedUser(
   request?: Request
 ): Promise<{ user: User | null; session: unknown | null }> {
-  const session = await getServerSession(authOptions)
-  const userId = (session?.user as { id?: string } | undefined)?.id
+  try {
+    const supabase = await createServerSupabase()
+    const {
+      data: { user: authUser },
+    } = await supabase.auth.getUser()
 
-  if (userId) {
-    const user = await findUserById(userId)
-    return { user, session }
+    if (authUser) {
+      const profile = await ensureUserProfile(authUser)
+      return { user: profile, session: { user: authUser } }
+    }
+  } catch (error) {
+    console.error('Supabase session check error:', error)
   }
 
   if (request) {

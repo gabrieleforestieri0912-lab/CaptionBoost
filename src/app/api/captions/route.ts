@@ -63,27 +63,28 @@ export async function GET(request: Request) {
     if (sourceLang) {
       const sourceCaptions = await fetchCaptionXML(videoId, sourceLang)
       if (sourceCaptions && sourceCaptions.length > 0) {
-        const { OpenAI } = await import('openai')
-        const openaiKey = process.env.OPENAI_API_KEY
-        if (openaiKey) {
-          const openai = new OpenAI({ apiKey: openaiKey })
-          const translatedCaptions = await Promise.all(
-            sourceCaptions.map(async (seg: { start: number; end: number; text: string }) => {
-              const resp = await openai.chat.completions.create({
-                model: 'gpt-3.5-turbo',
-                messages: [
-                  { role: 'system', content: 'Translate the following text to Italian. Return ONLY the translation, no explanations.' },
-                  { role: 'user', content: seg.text },
-                ],
-                temperature: 0.3,
-                max_tokens: 200,
-              })
-              return { ...seg, text: resp.choices[0]?.message?.content?.trim() || seg.text }
-            })
+        const { translateCaptionsWithAI } = await import('@/lib/ai-translation')
+        const { callProductionAI } = await import('@/lib/ai-provider')
+        try {
+          const translated = await translateCaptionsWithAI(
+            sourceCaptions,
+            'it',
+            sourceLang,
+            async (prompt) => {
+              const res = await callProductionAI({ prompt })
+              return res.text
+            },
+            { windowSize: 10, contextBefore: 3, contextAfter: 2 }
           )
-          return NextResponse.json({ captions: translatedCaptions, language: 'it', translated: true })
+          return NextResponse.json({
+            captions: translated.captions,
+            language: 'it',
+            translated: true,
+          })
+        } catch (aiErr) {
+          console.warn('AI translation failed, returning source captions:', aiErr)
+          return NextResponse.json({ captions: sourceCaptions, language: sourceLang, note: 'AI Translation failed, showing source' })
         }
-        return NextResponse.json({ captions: sourceCaptions, language: sourceLang, note: 'Italian captions not available, showing original' })
       }
     }
 

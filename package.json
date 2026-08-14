@@ -3,30 +3,25 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "cross-env NODE_OPTIONS=--no-deprecation next dev",
+    "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "verify": "node scripts/verify.js",
-    "extension:build": "node scripts/build-extension.js",
-    "build:extension": "node scripts/build-extension.js",
     "extension:pack": "cd public/extension && zip -r ../../captionboost-extension.zip . && cd ../..",
     "ollama:start": "ollama serve",
-    "ollama:pull": "ollama run llama3",
+    "ollama:pull": "ollama run deepseek-r1",
     "ollama:list": "ollama list"
   },
   "dependencies": {
     "@fortawesome/free-brands-svg-icons": "^7.3.1",
     "@fortawesome/react-fontawesome": "^3.4.0",
+    "@supabase/ssr": "^0.12.4",
     "@supabase/supabase-js": "^2.108.0",
     "bcryptjs": "^2.4.3",
     "framer-motion": "^12.38.0",
     "jsonwebtoken": "^9.0.3",
     "lucide-react": "^1.11.0",
     "next": "16.2.3",
-    "next-auth": "^4.24.14",
     "nodemailer": "^7.0.13",
     "openai": "^6.37.0",
     "react": "19.2.4",
@@ -48,7 +43,6 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.3",
     "tailwindcss": "^4",
-    "typescript": "^6.0.3",
-    "vitest": "^4.1.9"
+    "typescript": "^6.0.3"
   }
 }

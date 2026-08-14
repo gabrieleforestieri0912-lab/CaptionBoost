@@ -37,7 +37,7 @@ export default function Testimonials() {
           viewport={{ once: true }}
           className="text-center mb-16"
         >
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-sky-50 border border-sky-200/50 rounded-full text-sm font-medium text-primary mb-4">
+          <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary-50 border border-primary-200/50 rounded-full text-sm font-medium text-primary mb-4">
             <Sparkles className="w-4 h-4" />
             <span>Testimonianze</span>
           </div>

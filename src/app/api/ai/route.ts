@@ -1,49 +1,57 @@
 import { NextResponse } from 'next/server'
-import OpenAI from 'openai'
-
-const openai = process.env.OPENAI_API_KEY
-  ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
-  : null
+import { callProductionAI, AiProvider } from '@/lib/ai-provider'
 
 export async function POST(request: Request) {
   try {
-    const { prompt, model, temperature, max_tokens } = await request.json() as {
+    const body = await request.json().catch(() => ({})) as {
       prompt?: string
+      provider?: AiProvider
+      apiKey?: string
       model?: string
       temperature?: number
       max_tokens?: number
     }
 
+    const headerApiKey = request.headers.get('x-ai-api-key') || undefined
+    const headerProvider = (request.headers.get('x-ai-provider') as AiProvider) || undefined
+    const headerModel = request.headers.get('x-ai-model') || undefined
+
+    const prompt = body.prompt
     if (!prompt) {
       return NextResponse.json(
-        { error: 'Prompt is required' },
+        { error: 'Il parametro "prompt" è obbligatorio.' },
         { status: 400 }
       )
     }
 
-    if (openai) {
-      const response = await openai.chat.completions.create({
-        model: model || 'gpt-3.5-turbo',
-        messages: [{ role: 'user', content: prompt }],
-        temperature: temperature || 0.7,
-        max_tokens: max_tokens || 500,
-      })
+    // Se non viene specificato, il server usa il provider predefinito (DEFAULT_AI_PROVIDER,
+    // di default Ollama locale con deepseek-r1).
+    const provider = body.provider || headerProvider
+    const apiKey = body.apiKey || headerApiKey
+    const model = body.model || headerModel
+    const temperature = body.temperature
+    const maxTokens = body.max_tokens
 
-      return NextResponse.json({
-        response: response.choices[0]?.message?.content || '',
-        model: 'gpt-3.5-turbo',
-      })
-    }
+    const result = await callProductionAI({
+      prompt,
+      provider,
+      apiKey,
+      model,
+      temperature,
+      maxTokens,
+    })
 
-    console.log('OpenAI not configured, returning mock response')
     return NextResponse.json({
-      response: 'AI service not configured. Please set OPENAI_API_KEY.',
-      model: 'mock',
+      response: result.text,
+      provider: result.provider,
+      model: result.model,
     })
   } catch (error) {
-    console.error('AI API error:', error)
+    console.error('AI API Route Error:', error)
     return NextResponse.json(
-      { error: 'Failed to process request' },
+      {
+        error: (error as Error).message || 'Errore durante l\'elaborazione della richiesta AI',
+      },
       { status: 500 }
     )
   }

@@ -45,8 +45,8 @@ convert logo.png -resize 128x128 icon-128.png
 
 ### Colori
 ```
-Azzurro primario: #0066cc
-Azzurro scuro: #0052a3
+Azzurro primario: #4C94FF
+Azzurro scuro: #3A7BE0
 Bianco: #ffffff
 Sfondo: Gradiente azzurro
 ```
@@ -59,8 +59,8 @@ Usa questo SVG come base:
 <svg width="512" height="512" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#0066cc;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#0052a3;stop-opacity:1" />
+      <stop offset="0%" style="stop-color:#4C94FF;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#3A7BE0;stop-opacity:1" />
     </linearGradient>
   </defs>
   

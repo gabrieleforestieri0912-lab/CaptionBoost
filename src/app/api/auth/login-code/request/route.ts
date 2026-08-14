@@ -37,8 +37,6 @@ export async function POST(request: Request) {
       );
     }
 
-    console.log(`✅ Verification code sent to ${email}`);
-
     return addCorsHeaders(
       NextResponse.json({ message: 'If the email exists, a code has been sent' }, { status: 200 }),
       request

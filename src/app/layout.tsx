@@ -75,7 +75,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           name="viewport"
           content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes"
         />
-        <meta name="theme-color" content="#0ea5e9" />
+        <meta name="theme-color" content="#4C94FF" />
         <meta name="color-scheme" content="dark light" />
         <meta name="application-name" content="CaptionBoost" />
         <meta name="apple-mobile-web-app-capable" content="yes" />

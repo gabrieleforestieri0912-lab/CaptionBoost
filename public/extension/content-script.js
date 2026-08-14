@@ -1,4 +1,3 @@
-console.log("🎬 CaptionBoost Content Script Loaded");
 
 let subtitlesContainer = null;
 let isSubtitlesActive = false;
@@ -39,6 +38,28 @@ async function safeStorageGet(defaults, retries = 2) {
     try {
       if (chrome?.storage?.local) {
         const result = await chrome.storage.local.get(defaults);
+        return result;
+      }
+    } catch (e) {
+      if (e?.message?.includes('context invalidated')) {
+        keepExtensionAlive();
+        if (i < retries) {
+          await new Promise(r => setTimeout(r, 400 * (i + 1)));
+          continue;
+        }
+        cleanupSubtitlesContainer();
+      }
+    }
+    break;
+  }
+  return defaults;
+}
+
+async function safeSyncGet(defaults, retries = 2) {
+  for (let i = 0; i <= retries; i++) {
+    try {
+      if (chrome?.storage?.sync) {
+        const result = await chrome.storage.sync.get(defaults);
         return result;
       }
     } catch (e) {
@@ -163,7 +184,7 @@ function showToast(message, type = "error") {
     "position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:2147483647;" +
     `background:${isError ? "rgba(220,38,38,0.95)" : "rgba(22,163,74,0.95)"};` +
     "color:#fff;padding:10px 20px;border-radius:12px;font-size:13px;font-weight:500;" +
-    "font-family:Arial,Helvetica,sans-serif;box-shadow:0 4px 20px rgba(0,0,0,0.5);" +
+    "font-family:\"JetBrains Mono\",ui-monospace,SFMono-Regular,monospace;box-shadow:0 4px 20px rgba(0,0,0,0.5);" +
     "backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.1);" +
     "opacity:0;transition:opacity 0.3s ease;pointer-events:none;max-width:360px;" +
     "text-align:center;line-height:1.4;";
@@ -330,7 +351,7 @@ function createQaPanel() {
     "position:absolute;bottom:80px;right:20px;z-index:2147483647;display:flex;flex-direction:column;" +
     "width:340px;max-height:420px;background:rgba(15,15,15,0.95);backdrop-filter:blur(12px);" +
     "border:1px solid rgba(255,255,255,0.12);border-radius:16px;overflow:hidden;" +
-    "box-shadow:0 8px 32px rgba(0,0,0,0.6);font-family:Arial,Helvetica,sans-serif;";
+    "box-shadow:0 8px 32px rgba(0,0,0,0.6);font-family:\"JetBrains Mono\",ui-monospace,SFMono-Regular,monospace;";
 
   qaPanelHost.innerHTML =
     '<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid rgba(255,255,255,0.08);">' +
@@ -344,7 +365,7 @@ function createQaPanel() {
     '<div style="display:flex;border-top:1px solid rgba(255,255,255,0.08);padding:8px 12px;gap:8px;">' +
     '<input id="qa-input" type="text" placeholder="Chiedi qualcosa sul video..." ' +
     'style="flex:1;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:8px 12px;color:#fff;font-size:13px;outline:none;">' +
-    '<button id="qa-send-btn" style="background:#0066ff;border:none;border-radius:8px;color:#fff;cursor:pointer;padding:8px 12px;display:flex;align-items:center;justify-content:center;">' +
+    '<button id="qa-send-btn" style="background:#4C94FF;border:none;border-radius:8px;color:#fff;cursor:pointer;padding:8px 12px;display:flex;align-items:center;justify-content:center;">' +
     getLucideIconSvg("send") +
     '</button></div>';
 
@@ -367,7 +388,7 @@ function createQaPanel() {
     if (emptyMsg) emptyMsg.remove();
 
     const questionDiv = document.createElement("div");
-    questionDiv.style.cssText = "align-self:flex-end;background:#0066ff;color:#fff;border-radius:12px 12px 4px 12px;padding:8px 12px;font-size:13px;max-width:85%;word-wrap:break-word;";
+    questionDiv.style.cssText = "align-self:flex-end;background:#4C94FF;color:#fff;border-radius:12px 12px 4px 12px;padding:8px 12px;font-size:13px;max-width:85%;word-wrap:break-word;";
     questionDiv.textContent = question;
     messages.appendChild(questionDiv);
 
@@ -453,7 +474,7 @@ function createShadowStyles() {
       border-radius: 24px !important;
       transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4) !important;
-      font-family: "YouTube Noto", Roboto, Arial, Helvetica, sans-serif !important;
+      font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace !important;
       font-size: 13px !important;
       font-weight: 500 !important;
       white-space: nowrap !important;
@@ -464,15 +485,15 @@ function createShadowStyles() {
     }
 
     .cb-translate-btn:hover {
-      background: rgba(0, 102, 255, 0.75) !important;
+      background: rgba(0, 77, 229, 0.75) !important;
       filter: brightness(1.15) !important;
       border-color: rgba(255, 255, 255, 0.25) !important;
-      box-shadow: 0 4px 20px rgba(0, 102, 255, 0.5) !important;
+      box-shadow: 0 4px 20px rgba(0, 77, 229, 0.5) !important;
     }
 
     .cb-translate-btn.active {
-      background: #0066ff !important;
-      box-shadow: 0 0 20px rgba(0, 102, 255, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.15) !important;
+      background: #4C94FF !important;
+      box-shadow: 0 0 20px rgba(0, 77, 229, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.15) !important;
       border-color: rgba(255, 255, 255, 0.2) !important;
     }
 
@@ -534,10 +555,10 @@ function createShadowStyles() {
     }
 
     .cb-qa-btn:hover {
-      background: rgba(0, 102, 255, 0.8) !important;
+      background: rgba(0, 77, 229, 0.8) !important;
       filter: brightness(1.15) !important;
       border-color: rgba(255, 255, 255, 0.3) !important;
-      box-shadow: 0 4px 20px rgba(0, 102, 255, 0.5) !important;
+      box-shadow: 0 4px 20px rgba(0, 77, 229, 0.5) !important;
     }
 
     .cb-qa-btn svg {
@@ -548,7 +569,7 @@ function createShadowStyles() {
     }
 
     .cb-login-btn {
-      background: #0066ff !important;
+      background: #4C94FF !important;
       border: none !important;
       padding: 0 !important;
       width: 42px !important;
@@ -566,9 +587,9 @@ function createShadowStyles() {
     }
 
     .cb-login-btn:hover {
-      background: #0052cc !important;
+      background: #3A7BE0 !important;
       filter: brightness(1.15) !important;
-      box-shadow: 0 4px 20px rgba(0, 102, 255, 0.5) !important;
+      box-shadow: 0 4px 20px rgba(0, 77, 229, 0.5) !important;
     }
 
     .cb-login-btn svg {
@@ -805,7 +826,6 @@ async function fetchDirectCaptions(videoId) {
       });
 
       if (captions.length > 0) {
-        console.log(`📡 Direct captions fetched (${lang}): ${captions.length} lines`);
         return captions;
       }
     } catch (e) {
@@ -861,9 +881,10 @@ function stopCaptionSync() {
 async function startSubtitles() {
   setupSubtitlesHost();
 
-  const settings = await safeStorageGet({ translateTo: "it", translationNotes: false });
-  currentLanguage = settings.translateTo;
+  const settings = await safeSyncGet({ translateTo: "it", translationNotes: false });
+  currentLanguage = settings.translateTo || "it";
   showTranslationNotes = Boolean(settings.translationNotes);
+  currentTranslateLang = settings.translateTo || "";
 
   const videoId = getVideoId();
   if (!videoId) {
@@ -884,28 +905,39 @@ async function startSubtitles() {
   showSubtitleText("🤖 AI sta generando sottotitoli...", true);
 
   let resp;
-  resp = await safeSendMessage({
-    action: "restructureCaptions",
-    captions: captionsData,
-    targetLanguage: currentLanguage || "it",
-  });
+  try {
+    resp = await safeSendMessage({
+      action: "restructureCaptions",
+      captions: captionsData,
+      targetLanguage: currentLanguage || "it",
+    });
+  } catch (e) {
+    resp = null;
+  }
 
   if (resp?.success && resp.captions?.length > 0) {
     captionsData = resp.captions;
-    console.log(`✅ AI: ${captionsData.length} sottotitoli generati e tradotti`);
   } else {
-    throw new Error("AI non disponibile. Impossibile generare sottotitoli.");
+    console.warn("⚠️ AI non disponibile: inietto i sottotitoli originali del video");
+    showSubtitleText("⚙️ Sottotitoli originali (AI non disponibile)", true);
   }
 
-  const allLangResp = await safeSendMessage({
-    action: "translateToAllLanguages",
-    captions: captionsData,
-    sourceLanguage: currentSourceLanguage,
-  });
+  let allLangResp;
+  if (resp?.success) {
+    try {
+      allLangResp = await safeSendMessage({
+        action: "translateToAllLanguages",
+        captions: captionsData,
+        sourceLanguage: currentSourceLanguage,
+      });
+    } catch (e) {
+      allLangResp = null;
+    }
     if (allLangResp?.success && allLangResp.translations) {
       multiLangCaptions = allLangResp.translations;
       populateLangSwitcher(Object.keys(multiLangCaptions));
     }
+  }
 
   window.addEventListener("captions-language-change", (e) => {
     const { lang, captions: newCaptions } = e.detail;
@@ -1000,47 +1032,67 @@ function populateLangSwitcher(langCodes) {
 let showTranslationNotes = false;
 let currentSourceLanguage = "en";
 
+async function shouldShowSubtitles() {
+  const settings = await safeSyncGet({ showCaptions: true, showOriginalCaptions: true });
+  const showCaptions = settings.showCaptions !== false;
+  const showOriginalCaptions = settings.showOriginalCaptions !== false;
+  return { showCaptions, showOriginalCaptions };
+}
+
 function showSubtitleText(text, persistent = false) {
   if (!text || !isSubtitlesActive || !subtitlesHost || !subtitlesContainer) return;
 
   subtitleVersion++;
   const version = subtitleVersion;
 
-  if (showTranslationNotes && currentTranslateLang) {
-    const note = document.createElement("div");
-    note.style.cssText = "font-size:10px;opacity:0.6;margin-top:2px;text-align:center;color:#aaa;";
-    note.textContent = "🤖 Tradotto con AI";
-    subtitlesContainer.innerHTML = '';
-    subtitlesContainer.appendChild(document.createTextNode(text));
-    subtitlesContainer.appendChild(note);
-  } else {
-    subtitlesContainer.textContent = text;
-  }
+  const isOriginal = !currentTranslateLang;
 
-  subtitlesHost.style.display = "flex";
-  requestAnimationFrame(() => {
-    if (!subtitlesHost || !subtitlesContainer) return;
-    if (version === subtitleVersion) {
-      subtitlesHost.style.opacity = "1";
+  shouldShowSubtitles().then(async ({ showCaptions, showOriginalCaptions }) => {
+    if (version !== subtitleVersion) return;
+    if (!showCaptions || (isOriginal && !showOriginalCaptions)) {
+      hideSubtitleContainer();
+      return;
+    }
+
+    if (showTranslationNotes && currentTranslateLang) {
+      const note = document.createElement("div");
+      note.style.cssText = "font-size:10px;opacity:0.6;margin-top:2px;text-align:center;color:#aaa;";
+      note.textContent = "🤖 Tradotto con AI";
+      subtitlesContainer.innerHTML = '';
+      subtitlesContainer.appendChild(document.createTextNode(text));
+      subtitlesContainer.appendChild(note);
+    } else {
+      subtitlesContainer.textContent = text;
+    }
+
+    const settings = await getCaptionSettings();
+    const opacity = Math.min(1, Math.max(0, (Number(settings.opacity) || 100) / 100));
+
+    subtitlesHost.style.setProperty("display", "flex", "important");
+    requestAnimationFrame(() => {
+      if (!subtitlesHost || !subtitlesContainer) return;
+      if (version === subtitleVersion) {
+        subtitlesHost.style.setProperty("opacity", String(opacity), "important");
+      }
+    });
+
+    if (silenceTimer) clearTimeout(silenceTimer);
+    if (!persistent) {
+      silenceTimer = setTimeout(() => {
+        if (version === subtitleVersion) {
+          hideSubtitleContainer();
+        }
+      }, 3000);
     }
   });
-
-  if (silenceTimer) clearTimeout(silenceTimer);
-  if (!persistent) {
-    silenceTimer = setTimeout(() => {
-      if (version === subtitleVersion) {
-        hideSubtitleContainer();
-      }
-    }, 3000);
-  }
 }
 
 function hideSubtitleContainer() {
   if (!subtitlesHost) return;
-  subtitlesHost.style.opacity = "0";
+  subtitlesHost.style.setProperty("opacity", "0", "important");
   setTimeout(() => {
     if (!subtitlesHost) return;
-    subtitlesHost.style.display = "none";
+    subtitlesHost.style.setProperty("display", "none", "important");
   }, 250);
 }
 
@@ -1064,12 +1116,11 @@ function fillCaptionGaps(captions) {
 }
 
 async function fetchAllCaptions(videoId) {
-  const settings = await safeStorageGet({ youtubeApiKey: "" });
+  const settings = await safeSyncGet({ youtubeApiKey: "" });
   const apiKey = settings.youtubeApiKey || "";
   let sourceLanguage = "en";
 
   if (apiKey) {
-    console.log("🔑 YouTube API key trovata, fetch via API...");
     const tracks = await fetchTracksViaAPI(videoId, apiKey);
     if (tracks.length > 0) {
       const track = pickBestTrack(tracks);
@@ -1172,7 +1223,7 @@ function setupSubtitlesHost() {
   langSelect.style.cssText =
     "background:rgba(0,0,0,0.7);color:#fff;border:1px solid rgba(255,255,255,0.15);" +
     "border-radius:8px;padding:4px 8px;font-size:12px;cursor:pointer;outline:none;" +
-    "font-family:Arial,Helvetica,sans-serif;";
+    "font-family:\"JetBrains Mono\",ui-monospace,SFMono-Regular,monospace;";
   langSelect.innerHTML = '<option value="">Lingua originale</option>';
 
   langSelect.addEventListener("change", (e) => {
@@ -1182,6 +1233,7 @@ function setupSubtitlesHost() {
       const customEvent = new CustomEvent("captions-language-change", { detail: { lang, captions: multiLangCaptions[lang] } });
       window.dispatchEvent(customEvent);
     }
+    positionSubtitlesOverPlayer();
   });
 
   langSwitcher.appendChild(langSelect);
@@ -1196,17 +1248,22 @@ async function getCaptionSettings() {
   const defaults = {
     fontSize: 22,
     opacity: 100,
+    showCaptions: true,
+    showOriginalCaptions: true,
     captionPosition: 'bottom',
-    captionBackground: 'rgba(0,0,0,1)',
+    captionBackground: 'rgba(0,0,0,0.85)',
     captionRadius: '12px',
     captionPadding: '10px 22px',
     captionHorizontalMargin: '10%',
     originalColor: '#ffffff',
     originalSize: '1.0',
     originalWeight: '500',
+    translatedColor: '#7dd3fc',
+    translatedSize: '1.0',
+    translatedWeight: '500',
   };
   try {
-    const result = await safeStorageGet(defaults);
+    const result = await safeSyncGet(defaults);
     return { ...defaults, ...result };
   } catch {
     return defaults;
@@ -1218,13 +1275,20 @@ async function positionSubtitlesOverPlayer() {
 
   const settings = await getCaptionSettings();
   const position = settings.captionPosition === 'top' ? '20px' : '70px';
+  const opacity = Math.min(1, Math.max(0, (Number(settings.opacity) || 100) / 100));
+
+  const isTranslated = Boolean(currentTranslateLang && multiLangCaptions[currentTranslateLang]);
+  const color = isTranslated ? settings.translatedColor : settings.originalColor;
+  const size = (isTranslated ? settings.translatedSize : settings.originalSize) || '1.0';
+  const weight = (isTranslated ? settings.translatedWeight : settings.originalWeight) || '500';
+  const fontSize = Math.round(Number(settings.fontSize || 22) * Number(size) * 10) / 10;
 
   subtitlesHost.setAttribute("style",
     `position: absolute !important;` +
     `${position === '20px' ? 'top' : 'bottom'}: ${position} !important;` +
     "left: 0 !important;" +
     "right: 0 !important;" +
-    "display: none !important;" +
+    "display: flex !important;" +
     "justify-content: center !important;" +
     "align-items: center !important;" +
     "pointer-events: none !important;" +
@@ -1233,7 +1297,6 @@ async function positionSubtitlesOverPlayer() {
     "padding: 0 !important;" +
     "border: none !important;" +
     "overflow: visible !important;" +
-    `opacity: ${settings.opacity / 100} !important;` +
     "transition: opacity 0.2s ease !important;"
   );
 
@@ -1243,15 +1306,15 @@ async function positionSubtitlesOverPlayer() {
     "align-items: center !important;" +
     `padding: ${settings.captionPadding} !important;` +
     `background: ${settings.captionBackground} !important;` +
-    `color: ${settings.originalColor} !important;` +
+    `color: ${color} !important;` +
     `border-radius: ${settings.captionRadius} !important;` +
-    "font-family: \"YouTube Noto\", Roboto, Arial, Helvetica, sans-serif !important;" +
-    `font-size: ${settings.fontSize}px !important;` +
-    `font-weight: ${settings.originalWeight} !important;` +
+    "font-family: \"JetBrains Mono\", ui-monospace, SFMono-Regular, monospace !important;" +
+    `font-size: ${fontSize}px !important;` +
+    `font-weight: ${weight} !important;` +
     "text-align: center !important;" +
-    "border: 1px solid rgba(0, 102, 255, 0.3) !important;" +
-    "border-left: 3px solid #0066ff !important;" +
-    "box-shadow: 0 2px 12px rgba(0, 0, 0, 0.7), 0 0 12px rgba(0, 102, 255, 0.15) !important;" +
+    "border: 1px solid rgba(0, 77, 229, 0.35) !important;" +
+    "border-left: 3px solid #4C94FF !important;" +
+    "box-shadow: 0 2px 12px rgba(0, 0, 0, 0.7), 0 0 12px rgba(0, 77, 229, 0.15) !important;" +
     "text-shadow: 0 1px 3px rgba(0,0,0,0.5) !important;" +
     `max-width: ${100 - parseFloat(settings.captionHorizontalMargin || '0') * 2}% !important;` +
     "backdrop-filter: blur(4px) !important;" +
@@ -1364,6 +1427,20 @@ try {
         if (translateButton && !isSubtitlesActive) {
           updateTranslateButtonLabel(translateButton);
         }
+      }
+      const appearanceKeys = [
+        "fontSize", "opacity", "showCaptions", "showOriginalCaptions", "translationNotes",
+        "captionPosition", "originalColor", "originalSize", "originalWeight",
+        "translatedColor", "translatedSize", "translatedWeight",
+        "captionBackground", "captionRadius", "captionPadding", "captionHorizontalMargin",
+      ];
+      if (appearanceKeys.some((k) => changes[k])) {
+        positionSubtitlesOverPlayer();
+      }
+    }
+    if (area === "local") {
+      if (changes.captionboost_auth_token) {
+        injectSubtitlesButton();
       }
     }
   });

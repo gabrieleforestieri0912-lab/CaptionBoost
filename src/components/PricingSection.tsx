@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useSession, signIn } from 'next-auth/react'
+import { useRouter } from 'next/navigation'
+import { useAuth } from '@/components/AuthProvider'
 import { Check, Loader2, Zap, Star, Users, Sparkles } from 'lucide-react'
 import { motion } from 'framer-motion'
 import {
@@ -18,7 +19,8 @@ export default function PricingSection({
   compact?: boolean
   checkoutStatus?: string
 }) {
-  const { status } = useSession()
+  const { status } = useAuth()
+  const router = useRouter()
   const [loadingPlanId, setLoadingPlanId] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [isAnnual, setIsAnnual] = useState(false)
@@ -43,7 +45,7 @@ export default function PricingSection({
     }
 
     if (status !== 'authenticated') {
-      await signIn(undefined, { callbackUrl: `/pricing?plan=${planId}` })
+      router.push(`/login?callbackUrl=${encodeURIComponent(`/pricing?plan=${planId}`)}`)
       return
     }
 
@@ -117,7 +119,7 @@ export default function PricingSection({
               viewport={{ once: true }}
               className="text-center mb-10"
             >
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-sky-50 border border-sky-200/50 rounded-full text-xs font-medium text-primary mb-3">
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-primary-50 border border-primary-200/50 rounded-full text-xs font-medium text-primary mb-3">
                 <Sparkles className="w-3.5 h-3.5" />
                 <span>Piani</span>
               </div>
@@ -139,7 +141,7 @@ export default function PricingSection({
               <button
                 onClick={toggleBilling}
                 className="relative w-14 h-8 bg-slate-200 rounded-full transition-all focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 hover:bg-slate-300"
-                style={{ backgroundColor: isAnnual ? '#3b82f6' : '' }}
+                style={{ backgroundColor: isAnnual ? '#4C94FF' : '' }}
                 aria-label="Passa a fatturazione annuale"
               >
                 <span
@@ -154,7 +156,7 @@ export default function PricingSection({
                 } flex items-center gap-2`}
               >
                 Annuale
-                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-sky-100 text-primary">
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-primary-100 text-primary">
                   -20%
                 </span>
               </span>
@@ -163,7 +165,7 @@ export default function PricingSection({
         )}
 
         {checkoutStatus === 'success' && (
-          <div className="mb-8 p-4 bg-sky-50 border border-sky-200 text-primary rounded-xl text-sm text-center font-medium shadow-sm">
+          <div className="mb-8 p-4 bg-primary-50 border border-primary-200 text-primary rounded-xl text-sm text-center font-medium shadow-sm">
             &#10003; Pagamento completato con successo. Buon lavoro!
           </div>
         )}
@@ -204,7 +206,7 @@ export default function PricingSection({
                 transition={{ delay: index * 0.1, duration: 0.5 }}
                 className={`rounded-2xl border p-6 bg-white shadow-sm transition-all duration-500 flex flex-col ${
                   plan.suggested
-                    ? 'border-primary ring-4 ring-sky-50 shadow-lg shadow-primary/10 relative scale-[1.02] z-10'
+                    ? 'border-primary ring-4 ring-primary-50 shadow-lg shadow-primary/10 relative scale-[1.02] z-10'
                     : 'border-slate-100 hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-1'
                 }`}
               >
@@ -239,7 +241,7 @@ export default function PricingSection({
                     per {plan.interval}
                   </div>
                   {isAnnual && plan.price > '0' && (
-                    <div className="mt-2 text-xs text-primary font-bold bg-sky-50 py-1 px-2.5 rounded-full inline-block">
+                    <div className="mt-2 text-xs text-primary font-bold bg-primary-50 py-1 px-2.5 rounded-full inline-block">
                       Risparmi {priceInfo.savings.toFixed(2)}€ all&apos;anno
                     </div>
                   )}
@@ -256,7 +258,7 @@ export default function PricingSection({
                       key={idx}
                       className="flex items-start gap-2.5 text-xs text-slate-600"
                     >
-                      <div className="mt-0.5 rounded-full bg-sky-50 p-0.5 shrink-0">
+                      <div className="mt-0.5 rounded-full bg-primary-50 p-0.5 shrink-0">
                         <Check className="w-3 h-3 text-primary" />
                       </div>
                       <span>{feature}</span>
@@ -274,7 +276,7 @@ export default function PricingSection({
                       ? 'bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200'
                       : plan.suggested
                         ? 'bg-primary hover:bg-primary text-white shadow-lg shadow-primary/30 hover:shadow-primary/50'
-                        : 'bg-white hover:bg-sky-50 text-primary border-2 border-primary/30 hover:border-primary shadow-sm'
+                        : 'bg-white hover:bg-primary-50 text-primary border-2 border-primary/30 hover:border-primary shadow-sm'
                   } disabled:opacity-60 disabled:cursor-not-allowed`}
                 >
                   {loadingPlanId === plan.id && (
@@ -299,7 +301,7 @@ export default function PricingSection({
           <div className="mt-12 p-6 bg-white rounded-2xl border border-slate-100 shadow-lg shadow-slate-200/20">
             <div className="grid sm:grid-cols-2 gap-6">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-sky-50 flex items-center justify-center shrink-0">
+                <div className="w-10 h-10 rounded-xl bg-primary-50 flex items-center justify-center shrink-0">
                   <Zap className="w-5 h-5 text-primary" />
                 </div>
                 <div>
@@ -312,7 +314,7 @@ export default function PricingSection({
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-sky-50 flex items-center justify-center shrink-0">
+                <div className="w-10 h-10 rounded-xl bg-primary-50 flex items-center justify-center shrink-0">
                   <Users className="w-5 h-5 text-primary" />
                 </div>
                 <div>

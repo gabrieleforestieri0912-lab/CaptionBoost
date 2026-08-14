@@ -1,12 +1,11 @@
 import { NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
 import Stripe from 'stripe'
-import { authOptions } from '@/lib/auth-options'
 import { getPlanById, PRICING_CONFIG } from '@/lib/plans'
+import { getAuthenticatedUser } from '@/lib/get-user'
 
 export async function POST(request: Request) {
-  const session = await getServerSession(authOptions)
-  if (!session?.user?.email) {
+  const { user } = await getAuthenticatedUser(request)
+  if (!user?.email) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
@@ -65,14 +64,14 @@ export async function POST(request: Request) {
     const stripe = new Stripe(secretKey)
     const checkoutSession = await stripe.checkout.sessions.create({
       mode: 'subscription',
-      customer_email: session.user.email,
+      customer_email: user.email,
       line_items: [lineItem],
       success_url: `${origin}/pricing?checkout=success`,
       cancel_url: `${origin}/pricing?checkout=cancel`,
       metadata: {
         app: 'captionboost',
         planId,
-        userId: (session.user as { id?: string })?.id || '',
+        userId: user.id || '',
       },
       allow_promotion_codes: true,
     })

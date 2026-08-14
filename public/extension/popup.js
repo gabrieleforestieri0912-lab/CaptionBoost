@@ -24,6 +24,21 @@ document.addEventListener("DOMContentLoaded", async () => {
   const opacitySlider = document.getElementById("opacity");
   const fontSizeValue = document.getElementById("fontSizeValue");
   const opacityValue = document.getElementById("opacityValue");
+  const showCaptionsCheck = document.getElementById("showCaptions");
+  const showOriginalCaptionsCheck = document.getElementById("showOriginalCaptions");
+  const translationNotesCheck = document.getElementById("translationNotes");
+  const captionPositionSelect = document.getElementById("captionPosition");
+  const originalColorInput = document.getElementById("originalColor");
+  const originalSizeInput = document.getElementById("originalSize");
+  const originalWeightInput = document.getElementById("originalWeight");
+  const translatedColorInput = document.getElementById("translatedColor");
+  const translatedSizeInput = document.getElementById("translatedSize");
+  const translatedWeightInput = document.getElementById("translatedWeight");
+  const captionBackgroundInput = document.getElementById("captionBackground");
+  const captionRadiusInput = document.getElementById("captionRadius");
+  const captionPaddingInput = document.getElementById("captionPadding");
+  const captionHorizontalMarginInput = document.getElementById("captionHorizontalMargin");
+  const youtubeApiKeyInput = document.getElementById("youtubeApiKey");
   const enableBtn = document.getElementById("enable-btn");
   const disableBtn = document.getElementById("disable-btn");
   const logoutBtn = document.getElementById("logout-btn");
@@ -68,7 +83,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     quotaFill.style.background =
       ratio >= 100
         ? "#ef4444"
-        : "#0066cc";
+        : "#4C94FF";
   }
 
   function loadQuota() {
@@ -160,7 +175,14 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   function loadSettings() {
     chrome.storage.sync.get(
-      ["language", "translateTo", "model", "fontSize", "opacity", "enabled"],
+      [
+        "language", "translateTo", "model", "fontSize", "opacity", "enabled",
+        "showCaptions", "showOriginalCaptions", "translationNotes", "captionPosition",
+        "originalColor", "originalSize", "originalWeight",
+        "translatedColor", "translatedSize", "translatedWeight",
+        "captionBackground", "captionRadius", "captionPadding", "captionHorizontalMargin",
+        "youtubeApiKey",
+      ],
       (result) => {
         if (result.language) languageSelect.value = result.language;
         if (typeof result.translateTo !== "undefined") {
@@ -175,6 +197,21 @@ document.addEventListener("DOMContentLoaded", async () => {
           opacitySlider.value = result.opacity;
           opacityValue.textContent = `${result.opacity}%`;
         }
+        if (typeof result.showCaptions !== "undefined") showCaptionsCheck.checked = result.showCaptions;
+        if (typeof result.showOriginalCaptions !== "undefined") showOriginalCaptionsCheck.checked = result.showOriginalCaptions;
+        if (typeof result.translationNotes !== "undefined") translationNotesCheck.checked = result.translationNotes;
+        if (result.captionPosition) captionPositionSelect.value = result.captionPosition;
+        if (result.originalColor) originalColorInput.value = result.originalColor;
+        if (result.originalSize) originalSizeInput.value = result.originalSize;
+        if (result.originalWeight) originalWeightInput.value = result.originalWeight;
+        if (result.translatedColor) translatedColorInput.value = result.translatedColor;
+        if (result.translatedSize) translatedSizeInput.value = result.translatedSize;
+        if (result.translatedWeight) translatedWeightInput.value = result.translatedWeight;
+        if (result.captionBackground) captionBackgroundInput.value = result.captionBackground;
+        if (result.captionRadius) captionRadiusInput.value = result.captionRadius;
+        if (result.captionPadding) captionPaddingInput.value = result.captionPadding;
+        if (result.captionHorizontalMargin) captionHorizontalMarginInput.value = result.captionHorizontalMargin;
+        if (result.youtubeApiKey) youtubeApiKeyInput.value = result.youtubeApiKey;
         updateStatus(Boolean(result.enabled));
       }
     );
@@ -302,25 +339,92 @@ document.addEventListener("DOMContentLoaded", async () => {
     chrome.storage.sync.set({ model: e.target.value });
   });
 
+  showCaptionsCheck.addEventListener("change", (e) => {
+    chrome.storage.sync.set({ showCaptions: e.target.checked });
+  });
+
+  showOriginalCaptionsCheck.addEventListener("change", (e) => {
+    chrome.storage.sync.set({ showOriginalCaptions: e.target.checked });
+  });
+
+  translationNotesCheck.addEventListener("change", (e) => {
+    chrome.storage.sync.set({ translationNotes: e.target.checked });
+  });
+
+  captionPositionSelect.addEventListener("change", (e) => {
+    chrome.storage.sync.set({ captionPosition: e.target.value });
+  });
+
+  originalColorInput.addEventListener("input", (e) => {
+    chrome.storage.sync.set({ originalColor: e.target.value });
+  });
+
+  originalSizeInput.addEventListener("change", (e) => {
+    chrome.storage.sync.set({ originalSize: e.target.value });
+  });
+
+  originalWeightInput.addEventListener("change", (e) => {
+    chrome.storage.sync.set({ originalWeight: e.target.value });
+  });
+
+  translatedColorInput.addEventListener("input", (e) => {
+    chrome.storage.sync.set({ translatedColor: e.target.value });
+  });
+
+  translatedSizeInput.addEventListener("change", (e) => {
+    chrome.storage.sync.set({ translatedSize: e.target.value });
+  });
+
+  translatedWeightInput.addEventListener("change", (e) => {
+    chrome.storage.sync.set({ translatedWeight: e.target.value });
+  });
+
+  captionBackgroundInput.addEventListener("change", (e) => {
+    chrome.storage.sync.set({ captionBackground: e.target.value });
+  });
+
+  captionRadiusInput.addEventListener("change", (e) => {
+    chrome.storage.sync.set({ captionRadius: e.target.value });
+  });
+
+  captionPaddingInput.addEventListener("change", (e) => {
+    chrome.storage.sync.set({ captionPadding: e.target.value });
+  });
+
+  captionHorizontalMarginInput.addEventListener("change", (e) => {
+    chrome.storage.sync.set({ captionHorizontalMargin: e.target.value });
+  });
+
+  youtubeApiKeyInput.addEventListener("change", (e) => {
+    chrome.storage.sync.set({ youtubeApiKey: e.target.value.trim() });
+  });
+
+  async function openAppPage(path) {
+    try {
+      await authManager._ensureInit();
+    } catch {}
+    chrome.tabs.create({ url: `${authManager.apiUrl.replace('/api/auth', '')}${path}` });
+  }
+
   plansLink.addEventListener("click", (e) => {
     e.preventDefault();
-    chrome.tabs.create({ url: `${authManager.apiUrl.replace('/api/auth', '')}/pricing` });
+    openAppPage('/pricing');
   });
 
   settingsLink.addEventListener("click", (e) => {
     e.preventDefault();
-    chrome.tabs.create({ url: `${authManager.apiUrl.replace('/api/auth', '')}/settings` });
+    openAppPage('/settings');
   });
 
   const subtitlesLink = document.getElementById("subtitles-link");
   subtitlesLink.addEventListener("click", (e) => {
     e.preventDefault();
-    chrome.tabs.create({ url: `${authManager.apiUrl.replace('/api/auth', '')}/account` });
+    openAppPage('/account');
   });
 
   qaLink.addEventListener("click", (e) => {
     e.preventDefault();
-    chrome.tabs.create({ url: `${authManager.apiUrl.replace('/api/auth', '')}/account` });
+    openAppPage('/account');
   });
 
   supportLink.addEventListener("click", (e) => {

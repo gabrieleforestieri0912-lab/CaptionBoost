@@ -16,9 +16,9 @@
       width: 380px;
       margin: 0;
       padding: 0;
-      font-family: "JetBrains Mono", "JetBrains Mono Fallback", monospace;
+      font-family: "JetBrains Mono", "JetBrains Mono Fallback", ui-monospace, monospace;
       background: #ffffff;
-      color: #333;
+      color: #0f172a;
     }
 
     .popup-container {
@@ -35,31 +35,36 @@
     .logo {
       font-size: 22px;
       font-weight: 700;
-      color: #0066cc;
+      color: #4C94FF;
+      letter-spacing: -0.02em;
     }
 
     .user-profile {
       font-size: 12px;
-      color: #666;
+      color: #64748b;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 180px;
     }
 
     .status {
       font-size: 12px;
-      color: #666;
+      color: #64748b;
       margin-bottom: 12px;
     }
 
     .status.active {
-      color: #00a44f;
+      color: #16a34a;
       font-weight: 600;
     }
 
     .quota-card {
       margin-bottom: 12px;
       padding: 12px;
-      border-radius: 10px;
+      border-radius: 12px;
       background: #ffffff;
-      border: 1px solid #dbe7f5;
+      border: 1px solid #e2e8f0;
     }
 
     .quota-header {
@@ -68,14 +73,14 @@
       align-items: center;
       font-size: 12px;
       margin-bottom: 8px;
-      color: #374151;
+      color: #334155;
       font-weight: 600;
     }
 
     .quota-bar {
       width: 100%;
       height: 8px;
-      background: #e9eef6;
+      background: #f1f5f9;
       border-radius: 999px;
       overflow: hidden;
     }
@@ -84,7 +89,7 @@
       height: 100%;
       width: 0;
       border-radius: 999px;
-      background: #0066cc;
+      background: #4C94FF;
       transition: width 0.25s ease;
     }
 
@@ -103,16 +108,23 @@
       font-size: 12px;
       font-weight: 600;
       text-decoration: none;
-      color: #1f3d63;
-      border: 1px solid #d5dce6;
-      border-radius: 8px;
+      color: #334155;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
       padding: 8px;
-      background: #f8fbff;
+      background: #f8fafc;
+      transition: all 0.2s ease;
+    }
+
+    .quick-link:hover {
+      background: #EDF4FF;
+      border-color: #B7D4FF;
+      color: #4C94FF;
     }
 
     .card {
       background: #fff;
-      border: 1px solid #e0e8f0;
+      border: 1px solid #e2e8f0;
       border-radius: 12px;
       padding: 14px;
     }
@@ -125,7 +137,7 @@
 
     .auth-subtitle {
       font-size: 12px;
-      color: #666;
+      color: #64748b;
       margin-bottom: 12px;
       line-height: 1.4;
     }
@@ -143,26 +155,30 @@
 
     .form-input {
       width: 100%;
-      border: 1px solid #d5dce6;
-      border-radius: 8px;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
       padding: 10px 12px;
       font-size: 13px;
+      font-family: inherit;
       box-sizing: border-box;
+      background: #fff;
+      color: #0f172a;
     }
 
     .form-input:focus {
       outline: none;
-      border-color: #0066cc;
-      box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.12);
+      border-color: #4C94FF;
+      box-shadow: 0 0 0 3px rgba(0, 77, 229, 0.12);
     }
 
     .btn {
       width: 100%;
       border: none;
-      border-radius: 8px;
+      border-radius: 10px;
       padding: 10px 12px;
       font-size: 13px;
       font-weight: 600;
+      font-family: inherit;
       cursor: pointer;
       transition: all 0.2s ease;
     }
@@ -173,19 +189,19 @@
     }
 
     .btn-primary {
-      background: #0066cc;
+      background: #4C94FF;
       color: #fff;
     }
 
     .btn-primary:hover:not(:disabled) {
       transform: translateY(-1px);
-      box-shadow: 0 4px 10px rgba(0, 102, 204, 0.25);
+      box-shadow: 0 4px 10px rgba(0, 77, 229, 0.25);
     }
 
     .btn-secondary {
-      background: lab(36.9089% 35.0961 -85.6872);
-      color: #fff;
-      border: 1px solid lab(36.9089% 35.0961 -85.6872);
+      background: #f1f5f9;
+      color: #334155;
+      border: 1px solid #e2e8f0;
     }
 
     .btn-row {
@@ -197,14 +213,14 @@
 
     .divider {
       font-size: 12px;
-      color: #999;
+      color: #94a3b8;
       text-align: center;
       margin: 12px 0;
     }
 
     .hint {
       font-size: 12px;
-      color: #666;
+      color: #64748b;
       margin-top: 8px;
       line-height: 1.4;
     }
@@ -213,8 +229,21 @@
       margin: 12px 0;
       padding: 12px;
       background: #fff;
-      border: 1px solid #e0e8f0;
-      border-radius: 10px;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+    }
+
+    .setting-section-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #64748b;
+      margin: 14px 0 10px;
+    }
+
+    .setting-section-title:first-child {
+      margin-top: 0;
     }
 
     .setting-group {
@@ -232,13 +261,61 @@
       margin-bottom: 6px;
     }
 
-    .language-select, .model-select {
+    .language-select, .model-select, .setting-select {
       width: 100%;
       padding: 8px 10px;
-      border: 1px solid #d5dce6;
-      border-radius: 8px;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
       font-size: 13px;
+      font-family: inherit;
       background: #fff;
+      color: #0f172a;
+    }
+
+    .language-select:focus, .model-select:focus, .setting-select:focus {
+      outline: none;
+      border-color: #4C94FF;
+      box-shadow: 0 0 0 3px rgba(0, 77, 229, 0.12);
+    }
+
+    .setting-check {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      font-weight: 500;
+      color: #334155;
+      cursor: pointer;
+      margin-bottom: 8px;
+    }
+
+    .setting-check input[type="checkbox"] {
+      width: 15px;
+      height: 15px;
+      accent-color: #4C94FF;
+      cursor: pointer;
+    }
+
+    .setting-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .setting-grid .full {
+      grid-column: 1 / -1;
+    }
+
+    .setting-mini {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .setting-mini span {
+      font-size: 11px;
+      font-weight: 600;
+      color: #64748b;
     }
 
     .slider-group label {
@@ -251,6 +328,7 @@
 
     .slider {
       width: 100%;
+      accent-color: #4C94FF;
     }
 
     .buttons {
@@ -261,31 +339,38 @@
     }
 
     .btn-enable {
-      background: #0066cc;
+      background: #4C94FF;
       color: #fff;
     }
 
     .btn-enable.active {
-      background: #00b35c;
+      background: #16a34a;
     }
 
     .btn-disable {
-      background: #f5f7fb;
-      color: #4b5563;
-      border: 1px solid #d5dce6;
+      background: #f8fafc;
+      color: #475569;
+      border: 1px solid #e2e8f0;
     }
 
     .logout-btn {
       margin-top: 10px;
       width: 100%;
-      border: 1px solid #d5dce6;
-      border-radius: 8px;
-      background: #f5f7fb;
-      color: #4b5563;
+      border: 1px solid #fecdd3;
+      border-radius: 10px;
+      background: #fff1f2;
+      color: #e11d48;
       padding: 8px 10px;
       font-size: 12px;
       font-weight: 600;
+      font-family: inherit;
       cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .logout-btn:hover {
+      background: #ffe4e6;
+      border-color: #fda4af;
     }
 
     .loading {
@@ -293,14 +378,14 @@
       text-align: center;
       padding: 16px;
       font-size: 13px;
-      color: #666;
+      color: #64748b;
     }
 
     .spinner {
       width: 30px;
       height: 30px;
-      border: 3px solid #e5e7eb;
-      border-top: 3px solid #0066cc;
+      border: 3px solid #e2e8f0;
+      border-top: 3px solid #4C94FF;
       border-radius: 50%;
       margin: 0 auto 8px;
       animation: spin 1s linear infinite;
@@ -314,22 +399,23 @@
     .error,
     .success {
       display: none;
-      border-radius: 8px;
+      border-radius: 10px;
       font-size: 12px;
       padding: 10px 12px;
       margin-bottom: 10px;
+      line-height: 1.4;
     }
 
     .error {
-      background: #ffe8e8;
-      border: 1px solid #ffb8b8;
-      color: #b00020;
+      background: #fff1f2;
+      border: 1px solid #fecdd3;
+      color: #be123c;
     }
 
     .success {
-      background: #e8ffef;
-      border: 1px solid #b6f0c7;
-      color: #08763a;
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      color: #15803d;
     }
   </style>
 </head>
@@ -409,6 +495,8 @@
       </div>
 
       <div class="settings">
+        <div class="setting-section-title">Generale</div>
+
         <div class="setting-group">
           <label class="setting-label">Lingua sottotitoli originali</label>
           <select class="language-select" id="language">
@@ -465,25 +553,106 @@
         <div class="setting-group">
           <label class="setting-label">Modello AI</label>
           <select class="model-select" id="model">
+            <option value="deepseek-r1">DeepSeek R1 (Consigliato)</option>
             <option value="llama3">Llama3 (Veloce)</option>
             <option value="llama3-70b">Llama3 70B (Accurato)</option>
           </select>
         </div>
 
+        <div class="setting-section-title">Opzioni sottotitoli</div>
+
+        <div class="setting-group">
+          <label class="setting-check">
+            <input type="checkbox" id="showCaptions" checked>
+            Mostra sottotitoli nel player
+          </label>
+          <label class="setting-check">
+            <input type="checkbox" id="showOriginalCaptions" checked>
+            Mostra sottotitoli originali
+          </label>
+          <label class="setting-check">
+            <input type="checkbox" id="translationNotes">
+            Nota "Tradotto con AI"
+          </label>
+        </div>
+
+        <div class="setting-group">
+          <label class="setting-label">Posizione</label>
+          <select class="setting-select" id="captionPosition">
+            <option value="bottom">In basso</option>
+            <option value="top">In alto</option>
+          </select>
+        </div>
+
+        <div class="setting-section-title">Aspetto</div>
+
         <div class="setting-group slider-group">
           <label>
             <span>Dimensione font</span>
-            <span id="fontSizeValue">14px</span>
+            <span id="fontSizeValue">22px</span>
           </label>
-          <input type="range" id="fontSize" class="slider" min="10" max="24" value="14">
+          <input type="range" id="fontSize" class="slider" min="10" max="48" value="22">
         </div>
 
         <div class="setting-group slider-group">
           <label>
-            <span>Opacita'</span>
+            <span>Opacità</span>
             <span id="opacityValue">100%</span>
           </label>
           <input type="range" id="opacity" class="slider" min="20" max="100" value="100" step="10">
+        </div>
+
+        <div class="setting-group">
+          <label class="setting-label">Colore sottotitoli originali</label>
+          <input id="originalColor" type="color" value="#ffffff" class="form-input" style="height:36px;padding:4px;cursor:pointer;">
+        </div>
+
+        <div class="setting-grid">
+          <div class="setting-mini">
+            <span>Dimensione originali</span>
+            <input id="originalSize" type="number" step="0.1" min="0.6" max="3" value="1.0" class="form-input">
+          </div>
+          <div class="setting-mini">
+            <span>Spessore originali</span>
+            <input id="originalWeight" type="number" step="100" min="100" max="900" value="500" class="form-input">
+          </div>
+          <div class="setting-mini">
+            <span>Dimensione tradotti</span>
+            <input id="translatedSize" type="number" step="0.1" min="0.6" max="3" value="1.0" class="form-input">
+          </div>
+          <div class="setting-mini">
+            <span>Spessore tradotti</span>
+            <input id="translatedWeight" type="number" step="100" min="100" max="900" value="500" class="form-input">
+          </div>
+          <div class="setting-mini full">
+            <span>Colore sottotitoli tradotti</span>
+            <input id="translatedColor" type="color" value="#7dd3fc" class="form-input" style="height:36px;padding:4px;cursor:pointer;">
+          </div>
+        </div>
+
+        <div class="setting-section-title">Riquadro sottotitoli</div>
+
+        <div class="setting-grid">
+          <div class="setting-mini">
+            <span>Sfondo</span>
+            <input id="captionBackground" type="text" value="rgba(0,0,0,0.85)" class="form-input">
+          </div>
+          <div class="setting-mini">
+            <span>Raggio angoli</span>
+            <input id="captionRadius" type="text" value="12px" class="form-input">
+          </div>
+          <div class="setting-mini">
+            <span>Padding</span>
+            <input id="captionPadding" type="text" value="10px 22px" class="form-input">
+          </div>
+          <div class="setting-mini">
+            <span>Margine orizzontale</span>
+            <input id="captionHorizontalMargin" type="text" value="10%" class="form-input">
+          </div>
+          <div class="setting-mini full">
+            <span>YouTube API Key (opzionale)</span>
+            <input id="youtubeApiKey" type="text" placeholder="AIzaSy..." class="form-input">
+          </div>
         </div>
       </div>
 

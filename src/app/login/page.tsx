@@ -1,16 +1,11 @@
 "use client";
 
-import { useState } from "react";
-import { signIn } from "next-auth/react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-
-const googleEnabled = !!(
-  process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID &&
-  process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID.length > 0
-);
+import { createBrowserSupabase } from "@/lib/supabase-browser";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -19,22 +14,31 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("error") === "oauth") {
+      setError("Accesso con Google non riuscito. Riprova.");
+    }
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError("");
     setLoading(true);
 
     try {
-      const result = await signIn("credentials", {
-        redirect: false,
+      const supabase = createBrowserSupabase();
+      const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
-      if (result?.error) {
+      if (error) {
         setError("Invalid email or password");
       } else {
-        router.push("/");
+        const callbackUrl =
+          new URLSearchParams(window.location.search).get("callbackUrl") || "/";
+        router.push(callbackUrl);
         router.refresh();
       }
     } catch (err) {
@@ -44,8 +48,19 @@ export default function LoginPage() {
     }
   };
 
-  const handleGoogleSignIn = () => {
-    signIn("google", { callbackUrl: "/" });
+  const handleGoogleSignIn = async () => {
+    try {
+      const supabase = createBrowserSupabase();
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
+      if (error) setError(error.message);
+    } catch (err) {
+      setError("An error occurred. Please try again.");
+    }
   };
 
   return (
@@ -122,8 +137,7 @@ export default function LoginPage() {
             </button>
           </form>
 
-          {googleEnabled && (
-            <div className="mt-6">
+          <div className="mt-6">
               <div className="relative">
                 <div className="absolute inset-0 flex items-center">
                   <div className="w-full border-t border-slate-200" />
@@ -141,7 +155,6 @@ export default function LoginPage() {
                 Accedi con Google
               </button>
             </div>
-          )}
 
           <p className="mt-6 text-center text-sm text-slate-500">
             Don&apos;t have an account?{" "}

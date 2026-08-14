@@ -1,11 +1,10 @@
 import { NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth-options'
 import { saveFeedback } from '@/lib/db'
+import { getAuthenticatedUser } from '@/lib/get-user'
 
 export async function POST(request: Request) {
-  const session = await getServerSession(authOptions)
-  const userId = (session?.user as { id?: string } | undefined)?.id || null
+  const { user } = await getAuthenticatedUser(request)
+  const userId = user?.id || null
 
   try {
     const { type, message, rating } = await request.json() as {

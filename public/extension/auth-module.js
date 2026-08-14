@@ -9,7 +9,7 @@ class AuthManager {
     this.redirectUri = chrome.identity.getRedirectURL();
     this.tokenKey = "captionboost_auth_token";
     this.userKey = "captionboost_user";
-    this._initApiUrl()
+    this._initPromise = this._initApiUrl()
   }
 
   async _initApiUrl() {
@@ -21,11 +21,19 @@ class AuthManager {
     } catch {}
   }
 
+  async _ensureInit() {
+    if (this._initPromise) {
+      await this._initPromise;
+      this._initPromise = null;
+    }
+  }
+
   /**
    * Login con email e password
    */
   async loginWithEmail(email, password) {
     try {
+      await this._ensureInit();
       const response = await fetch(`${this.apiUrl}/login`, {
         method: "POST",
         headers: {
@@ -42,7 +50,6 @@ class AuthManager {
       const data = await response.json();
       await this._saveAuthData(data);
 
-      console.log("✅ Login con email riuscito:", email);
       return { success: true, user: data.user };
     } catch (error) {
       console.error("❌ Errore login email:", error);
@@ -55,6 +62,7 @@ class AuthManager {
    */
   async requestLoginCode(email) {
     try {
+      await this._ensureInit();
       const response = await fetch(`${this.apiUrl}/login-code/request`, {
         method: "POST",
         headers: {
@@ -80,6 +88,7 @@ class AuthManager {
    */
   async loginWithEmailCode(email, code) {
     try {
+      await this._ensureInit();
       const response = await fetch(`${this.apiUrl}/login-code/verify`, {
         method: "POST",
         headers: {
@@ -96,7 +105,6 @@ class AuthManager {
       const data = await response.json();
       await this._saveAuthData(data);
 
-      console.log("✅ Login con codice email riuscito:", email);
       return { success: true, user: data.user };
     } catch (error) {
       console.error("❌ Errore verifica codice login:", error);
@@ -109,6 +117,7 @@ class AuthManager {
    */
   async registerWithEmail(email, password, name) {
     try {
+      await this._ensureInit();
       // Validazione password
       if (password.length < 8) {
         throw new Error("La password deve avere almeno 8 caratteri");
@@ -130,7 +139,6 @@ class AuthManager {
       const data = await response.json();
       await this._saveAuthData(data);
 
-      console.log("✅ Registrazione completata:", email);
       return { success: true, user: data.user };
     } catch (error) {
       console.error("❌ Errore registrazione:", error);
@@ -145,6 +153,7 @@ class AuthManager {
   async logout() {
     try {
       const token = await this._getToken();
+      await this._ensureInit();
 
       // Informa il backend del logout
       if (token) {
@@ -160,7 +169,6 @@ class AuthManager {
       // Pulisci i dati locali
       await chrome.storage.local.remove([this.tokenKey, this.userKey]);
 
-      console.log("✅ Logout completato");
       return { success: true };
     } catch (error) {
       console.error("⚠️ Errore logout:", error);
@@ -175,6 +183,7 @@ class AuthManager {
    */
   async getAuthenticatedUser() {
     try {
+      await this._ensureInit();
       const user = await this._getUser();
       if (!user) return null;
 
@@ -211,6 +220,7 @@ class AuthManager {
     try {
       const token = await this._getToken();
       if (!token) return false;
+      await this._ensureInit();
 
       const response = await fetch(`${this.apiUrl}/refresh`, {
         method: "POST",
@@ -227,7 +237,6 @@ class AuthManager {
       const data = await response.json();
       await this._saveToken(data.token);
 
-      console.log("🔄 Token rinnovato");
       return true;
     } catch (error) {
       console.error("❌ Errore nel rinnovamento del token:", error);
@@ -242,6 +251,7 @@ class AuthManager {
     try {
       const token = await this._getToken();
       if (!token) return false;
+      await this._ensureInit();
 
       const response = await fetch(`${this.apiUrl}/verify`, {
         method: "GET",
@@ -310,6 +320,7 @@ class AuthManager {
       if (!token) {
         throw new Error("Non autenticato");
       }
+      await this._ensureInit();
 
       if (newPassword.length < 8) {
         throw new Error("La nuova password deve avere almeno 8 caratteri");
@@ -329,7 +340,6 @@ class AuthManager {
         throw new Error(error.message || "Errore nel cambio password");
       }
 
-      console.log("✅ Password cambiata");
       return { success: true };
     } catch (error) {
       console.error("❌ Errore cambio password:", error);
@@ -342,6 +352,7 @@ class AuthManager {
    */
   async requestPasswordReset(email) {
     try {
+      await this._ensureInit();
       const response = await fetch(`${this.apiUrl}/forgot-password`, {
         method: "POST",
         headers: {
@@ -355,7 +366,6 @@ class AuthManager {
         throw new Error(error.message || "Errore nella richiesta");
       }
 
-      console.log("✅ Email di reset inviata a:", email);
       return { success: true };
     } catch (error) {
       console.error("❌ Errore richiesta reset:", error);
@@ -368,6 +378,7 @@ class AuthManager {
    */
   async verifyEmail(token) {
     try {
+      await this._ensureInit();
       const response = await fetch(`${this.apiUrl}/verify-email`, {
         method: "POST",
         headers: {
@@ -381,7 +392,6 @@ class AuthManager {
         throw new Error(error.message || "Errore nella verifica");
       }
 
-      console.log("✅ Email verificata");
       return { success: true };
     } catch (error) {
       console.error("❌ Errore verifica email:", error);
@@ -393,6 +403,7 @@ class AuthManager {
    * Ottieni il token per richieste API autenticate
    */
   async getAuthHeader() {
+    await this._ensureInit();
     const token = await this._getToken();
     return {
       Authorization: `Bearer ${token}`,

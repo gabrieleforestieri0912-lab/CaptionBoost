@@ -1,261 +1,195 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence, type Variants } from 'framer-motion'
-import { Sparkles, Check, Globe, MessageCircle } from 'lucide-react'
-import { useSession } from 'next-auth/react'
-import { useLanguage } from '@/contexts/LanguageContext'
-import QAOverlay from './QAOverlay'
+import { Sparkles, Globe, Languages, ChevronRight } from 'lucide-react'
+import { DEMO_LANGS, type DemoLang } from '@/lib/demo-subtitles'
 
-const LANGUAGES = [
-  { code: 'en', label: 'English' },
-  { code: 'es', label: 'Español' },
-  { code: 'de', label: 'Deutsch' },
-  { code: 'fr', label: 'Français' },
-  { code: 'pt', label: 'Português' },
-  { code: 'ja', label: '日本語' },
-]
-
-const LANGUAGE_VIDEOS: Record<string, string> = {
-  en: 'n7g6T6HNymo',
-  es: 'dzj0j4KXOZk',
-  de: '03mJcLCSaVM',
-  fr: 'iarRi5ttZvU',
-  pt: 'STkIzO7K57c',
-  ja: '8v8gLyky0HM',
-}
-
-const LANG_LABELS: Record<string, string> = {
-  en: 'Inglese', it: 'Italiano', es: 'Spagnolo',
-  fr: 'Francese', de: 'Tedesco', pt: 'Portoghese', ja: 'Giapponese',
-}
-
-type SubtitleSegment = { start: number; end: number; text: string }
-type SubtitleTrack = SubtitleSegment[]
-
-type YTPlayer = {
-  loadVideoById: (videoId: string) => void
-  seekTo: (seconds: number, allowSeekAhead: boolean) => void
-  playVideo: () => void
-  getCurrentTime: () => number
-  setOption: (module: string, option: string, value: Record<string, string>) => void
-}
-
-type YTNamespace = {
-  Player: new (el: HTMLElement | string, options: {
-    videoId: string
-    playerVars?: Record<string, string | number | undefined>
-    events?: { onReady?: (event: { target: YTPlayer }) => void }
-  }) => YTPlayer
-}
+// ─── Tipi minimi per YouTube IFrame Player API ───────────────────────────────
 
 declare global {
   interface Window {
-    YT?: YTNamespace
+    YT?: {
+      Player: new (element: HTMLElement, options: YTPlayerOptions) => YTPlayer
+      PlayerState: { PLAYING: number; PAUSED: number; ENDED: number; CUED: number }
+    }
     onYouTubeIframeAPIReady?: () => void
   }
 }
 
-const subtitleAnim: Variants = {
-  initial: { opacity: 0, y: 12, filter: 'blur(4px)' },
-  animate: { opacity: 1, y: 0, filter: 'blur(0px)' },
-  exit: { opacity: 0, y: -12, filter: 'blur(4px)' },
+interface YTPlayerOptions {
+  videoId: string
+  playerVars?: Record<string, string | number | boolean>
+  events?: {
+    onReady?: (event: { target: YTPlayer }) => void
+    onStateChange?: (event: { data: number }) => void
+    onError?: (event: { data: number }) => void
+  }
 }
 
-let youtubeApiPromise: Promise<YTNamespace> | null = null
+interface YTPlayer {
+  playVideo(): void
+  pauseVideo(): void
+  seekTo(seconds: number, allowSeekAhead?: boolean): void
+  getCurrentTime(): number
+  getDuration(): number
+  getPlayerState(): number
+  setVolume(v: number): void
+  loadVideoById(videoId: string): void
+  destroy(): void
+}
 
-function loadYouTubeApi(): Promise<YTNamespace> {
-  if (typeof window === 'undefined') {
-    return Promise.reject(new Error('YT API disponibile solo nel browser'))
-  }
-  if (window.YT?.Player) return Promise.resolve(window.YT)
-  if (youtubeApiPromise) return youtubeApiPromise
+// ─── Animation variants ───────────────────────────────────────────────────────
 
-  youtubeApiPromise = new Promise((resolve, reject) => {
-    if (!document.getElementById('youtube-iframe-api')) {
-      const tag = document.createElement('script')
-      tag.id = 'youtube-iframe-api'
-      tag.src = 'https://www.youtube.com/iframe_api'
-      tag.async = true
-      tag.onerror = () => reject(new Error('Impossibile caricare YouTube IFrame API'))
-      document.head.appendChild(tag)
+const subtitleIn: Variants = {
+  initial: { opacity: 0, y: 14, filter: 'blur(6px)' },
+  animate: { opacity: 1, y: 0,  filter: 'blur(0px)', transition: { duration: 0.38, ease: [0.16, 1, 0.3, 1] } },
+  exit:    { opacity: 0, y: -10, filter: 'blur(4px)', transition: { duration: 0.22 } },
+}
+
+const originalIn: Variants = {
+  initial: { opacity: 0, x: -6 },
+  animate: { opacity: 1, x: 0, transition: { duration: 0.3, delay: 0.08 } },
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
+
+export default function DemoPreview() {
+  const [activeLang, setActiveLang]     = useState<DemoLang>(DEMO_LANGS[0])
+  const [position, setPosition]         = useState(0)
+  const [showOriginal, setShowOriginal] = useState(true)
+  const [ytReady, setYtReady]           = useState(false)
+
+  const playerRef     = useRef<HTMLDivElement>(null)
+  const ytPlayerRef   = useRef<YTPlayer | null>(null)
+  const activeLangRef = useRef<DemoLang>(DEMO_LANGS[0])
+
+  // Segmento corrente in base alla posizione reale del video
+  const segs = activeLang.segments
+  const first = segs[0]
+  const last = segs[segs.length - 1]
+  const currentSeg =
+    segs.find(s => position >= s.start && position < s.end) ??
+    (first && position < first.start ? first : last) ?? null
+
+  const totalDuration = activeLang.segments[activeLang.segments.length - 1]?.end ?? 60
+
+  // ── Carica la YouTube IFrame API (una sola volta) ──
+  useEffect(() => {
+    if (window.YT?.Player) {
+      setYtReady(true)
+      return
     }
     const prev = window.onYouTubeIframeAPIReady
     window.onYouTubeIframeAPIReady = () => {
       prev?.()
-      if (window.YT) resolve(window.YT)
-      else reject(new Error('YT non disponibile'))
+      setYtReady(true)
     }
-  })
-  return youtubeApiPromise
-}
-
-function useTypewriter(text: string, speed = 40): string {
-  const [displayed, setDisplayed] = useState('')
-
-  useEffect(() => {
-    setDisplayed('')
-    if (!text) return
-    let i = 0
-    const interval = setInterval(() => {
-      i++
-      setDisplayed(text.slice(0, i))
-      if (i >= text.length) clearInterval(interval)
-    }, speed)
-    return () => clearInterval(interval)
-  }, [text, speed])
-
-  return displayed
-}
-
-const Cursor = ({ len, total }: { len: number; total: number }) =>
-  len < total ? <span className="inline-block w-[2px] h-[1em] bg-white/80 ml-0.5 animate-pulse align-middle" /> : null
-
-export default function DemoPreview() {
-  const { t } = useLanguage()
-  const { data: session } = useSession()
-  const [selectedLang, setSelectedLang] = useState('en')
-  const [currentSegment, setCurrentSegment] = useState<SubtitleSegment | null>(null)
-  const [isReady, setIsReady] = useState(false)
-  const [showOriginal, setShowOriginal] = useState(true)
-  const [originalTrack, setOriginalTrack] = useState<SubtitleTrack>([])
-  const [translatedTrack, setTranslatedTrack] = useState<SubtitleTrack>([])
-  const [loading, setLoading] = useState(false)
-  const [bridgeReady, setBridgeReady] = useState(false)
-  const [qaOpen, setQaOpen] = useState(false)
-
-  const isTeam = session?.user?.subscriptionPlan === 'team'
-  const playerContainerRef = useRef<HTMLDivElement | null>(null)
-  const playerRef = useRef<YTPlayer | null>(null)
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
-
-  useEffect(() => {
-    const handler = (event: MessageEvent) => {
-      if (event.data?.source !== 'captionboost-extension') return
-      if (event.data.action === 'bridgeReady') setBridgeReady(true)
+    if (!document.querySelector('script[src="https://www.youtube.com/iframe_api"]')) {
+      const tag = document.createElement('script')
+      tag.src = 'https://www.youtube.com/iframe_api'
+      document.head.appendChild(tag)
     }
-    window.addEventListener('message', handler)
-    return () => window.removeEventListener('message', handler)
+    return () => { window.onYouTubeIframeAPIReady = prev }
   }, [])
 
-  const fetchCaptions = useCallback(async (videoId: string, lang: string, sourceLang?: string) => {
-    if (bridgeReady) {
-      try {
-        const result = await new Promise<{ success: boolean; captions?: SubtitleTrack }>((resolve) => {
-          const requestId = Date.now()
-          const handler = (event: MessageEvent) => {
-            if (event.data?.source !== 'captionboost-extension' || event.data.action !== 'captionsResult' || event.data.requestId !== requestId) return
-            window.removeEventListener('message', handler)
-            resolve(event.data)
+  // ── Crea il player reale (una volta, quando l'API è pronta) ──
+  useEffect(() => {
+    if (!ytReady || !playerRef.current) return
+
+    const player = new window.YT!.Player(playerRef.current, {
+      videoId: DEMO_LANGS[0].youtubeId,
+      playerVars: {
+        autoplay: 0,
+        controls: 1,
+        rel: 0,
+        playsinline: 1,
+        origin: window.location.origin,
+      },
+      events: {
+        onReady: (e) => {
+          ytPlayerRef.current = e.target
+          if (activeLangRef.current.youtubeId !== DEMO_LANGS[0].youtubeId) {
+            e.target.loadVideoById(activeLangRef.current.youtubeId)
           }
-          window.addEventListener('message', handler)
-          window.postMessage({ source: 'captionboost-webapp', action: 'fetchCaptions', requestId, videoId, lang, sourceLang }, '*')
-          setTimeout(() => { window.removeEventListener('message', handler); resolve({ success: false }) }, 10000)
-        })
-        if (result.success && result.captions) return result.captions
-      } catch { /* ignore */ }
+        },
+        onError: () => {
+          // video non disponibile: resta visibile la miniatura
+        },
+      },
+    })
+
+    return () => {
+      ytPlayerRef.current = null
+      try { player.destroy() } catch { /* noop */ }
     }
+  }, [ytReady]) // eslint-disable-line react-hooks/exhaustive-deps
 
-    try {
-      const params = new URLSearchParams({ videoId, lang })
-      if (sourceLang) params.set('sourceLang', sourceLang)
-      const resp = await fetch(`/api/captions?${params}`)
-      if (!resp.ok) return null
-      const data = await resp.json()
-      return data.captions as SubtitleTrack
-    } catch { return null }
-  }, [bridgeReady])
-
+  // ── Reset della posizione quando cambia lingua ──
   useEffect(() => {
-    let cancelled = false
-    const videoId = LANGUAGE_VIDEOS[selectedLang]
+    activeLangRef.current = activeLang
+    setPosition(0)
+  }, [activeLang])
 
-    async function load() {
-      setLoading(true)
-      const [orig, trans] = await Promise.all([
-        fetchCaptions(videoId, selectedLang),
-        fetchCaptions(videoId, 'it', selectedLang),
-      ])
-      if (cancelled) return
-      setOriginalTrack(orig || [])
-      setTranslatedTrack(trans || [])
-      setLoading(false)
-    }
-
-    load()
-    return () => { cancelled = true }
-  }, [selectedLang, fetchCaptions])
-
+  // ── Sincronizzazione: legge il tempo reale del video (sottotitoli = voce) ──
   useEffect(() => {
-    let cancelled = false
-
-    loadYouTubeApi().then((YT) => {
-      if (cancelled || !playerContainerRef.current || playerRef.current) return
-      playerRef.current = new YT.Player(playerContainerRef.current, {
-        videoId: LANGUAGE_VIDEOS[selectedLang],
-        playerVars: { autoplay: 0, controls: 1, rel: 0, modestbranding: 1, playsinline: 1, cc_load_policy: 1, cc_lang_pref: selectedLang },
-        events: { onReady: () => { if (!cancelled) setIsReady(true) } },
-      })
-    }).catch((err) => console.error('YouTube API error:', err))
-
-    return () => { cancelled = true; if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null } }
-  }, [])
-
-  useEffect(() => {
-    const player = playerRef.current
-    if (!player || !isReady) return
-    player.loadVideoById(LANGUAGE_VIDEOS[selectedLang])
-    try { player.setOption('captions', 'track', { languageCode: selectedLang }) } catch { /* */ }
-    setCurrentSegment(null)
-  }, [selectedLang, isReady])
-
-  useEffect(() => {
-    if (!isReady || originalTrack.length === 0) return
-
-    pollRef.current = setInterval(() => {
-      const player = playerRef.current
-      if (!player) return
-      let time = 0
-      try { time = player.getCurrentTime() } catch { return }
-      const seg = originalTrack.find((s) => time >= s.start && time < s.end) || null
-      setCurrentSegment((prev) => {
-        if (prev && seg && prev.start === seg.start && prev.end === seg.end) return prev
-        return seg
-      })
+    if (!ytReady) return
+    const iv = setInterval(() => {
+      const p = ytPlayerRef.current
+      if (!p) return
+      const t = p.getCurrentTime()
+      const dur = p.getDuration() || 0
+      // Se il video è terminato, riporta la posizione alla fine della trascrizione
+      setPosition(dur > 0 && t >= dur - 0.5 ? totalDuration : t)
     }, 200)
+    return () => clearInterval(iv)
+  }, [ytReady, totalDuration])
 
-    return () => { clearInterval(pollRef.current!); pollRef.current = null }
-  }, [isReady, selectedLang, originalTrack])
+  const seekTo = (idx: number) => {
+    const seg = activeLang.segments[idx]
+    if (!seg) return
+    const p = ytPlayerRef.current
+    if (p) {
+      p.seekTo(seg.start, true)
+      p.playVideo()
+    }
+    setPosition(seg.start)
+  }
 
-  const originalText = currentSegment?.text || ''
-  const translatedSeg = translatedTrack.find((s) => s.start === currentSegment?.start && s.end === currentSegment?.end)
-  const translationText = translatedSeg?.text || ''
-  const showOrig = showOriginal && originalText !== translationText
+  const switchLang = (lang: DemoLang) => {
+    setActiveLang(lang)
+    const p = ytPlayerRef.current
+    if (p) p.loadVideoById(lang.youtubeId)
+    setPosition(0)
+  }
 
-  const typedOriginal = useTypewriter(originalText, 30)
-  const typedTranslated = useTypewriter(translationText, 25)
-
-  const currentIndex = originalTrack.findIndex((s) => s.start === currentSegment?.start && s.end === currentSegment?.end)
+  const fmtTime = (s: number) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(Math.floor(s % 60)).padStart(2, '0')}`
 
   return (
-    <section className="relative py-14 sm:py-16 bg-white">
-      <div className="relative max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+    <section className="relative py-16 sm:py-24 bg-white overflow-hidden">
+      {/* Subtle background texture */}
+      <div className="absolute inset-0 pointer-events-none"
+        style={{ backgroundImage: 'radial-gradient(circle at 30% 20%, hsl(210 80% 97%) 0%, transparent 60%), radial-gradient(circle at 70% 80%, hsl(210 80% 97%) 0%, transparent 50%)' }} />
+
+      <div className="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+
+        {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}
-          className="text-center mb-10"
+          className="text-center mb-12"
         >
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-sky-50 border border-sky-200/50 rounded-full text-xs font-medium text-primary mb-3">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-primary-50 border border-primary-200/50 rounded-full text-xs font-semibold text-primary mb-4">
             <Sparkles className="w-3.5 h-3.5" />
-            <span>{t('demoLivePreview')}</span>
+            <span>Demo interattiva</span>
           </div>
-          <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 underline decoration-blue-400/60 decoration-2 underline-offset-4">
-            {t('demoTitle')}
+          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight text-slate-900">
+            Guarda CaptionBoost in azione
           </h2>
-          <p className="text-slate-500 mt-2 text-sm max-w-2xl mx-auto">
-            {t('demoDesc')}
+          <p className="text-slate-500 mt-3 text-sm sm:text-base max-w-xl mx-auto leading-relaxed">
+            Scegli una lingua e premi play: i sottotitoli reali del video vengono tradotti in italiano dall&apos;AI, sincronizzati con la voce.
           </p>
         </motion.div>
 
@@ -265,157 +199,156 @@ export default function DemoPreview() {
           viewport={{ once: true }}
           transition={{ duration: 0.7, delay: 0.15 }}
         >
-          <div className="flex flex-wrap items-center justify-center gap-2 mb-6">
-            {LANGUAGES.map((lang) => {
-              const isSelected = selectedLang === lang.code
+          {/* Language selector */}
+          <div className="flex flex-wrap items-center justify-center gap-2 mb-8">
+            {DEMO_LANGS.map(lang => {
+              const active = activeLang.code === lang.code
               return (
                 <button
                   key={lang.code}
-                  onClick={() => setSelectedLang(lang.code)}
-                  className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
-                    isSelected
-                      ? 'bg-primary text-white shadow-lg shadow-primary/25'
-                      : 'bg-white border border-slate-200 text-slate-600 hover:border-primary/30 hover:text-primary hover:shadow-sm'
+                  onClick={() => switchLang(lang)}
+                  className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
+                    active
+                      ? 'bg-primary text-white shadow-lg shadow-primary/25 scale-105'
+                      : 'bg-white border border-slate-200 text-slate-600 hover:border-primary/40 hover:text-primary hover:shadow-sm'
                   }`}
                 >
-                  {isSelected && <Check className="w-3.5 h-3.5" />}
+                  <span className="text-base leading-none">{lang.flag}</span>
                   <span>{lang.label}</span>
                 </button>
               )
             })}
           </div>
 
-          <div className="flex items-center justify-center gap-2 text-sm text-slate-500 mb-3">
+          {/* Translation direction badge */}
+          <div className="flex items-center justify-center gap-2 text-sm text-slate-500 mb-5">
             <Globe className="w-4 h-4 text-primary" />
-            <span>{LANG_LABELS[selectedLang]} → Italiano</span>
+            <span className="font-medium text-slate-700">{activeLang.nativeName}</span>
+            <ChevronRight className="w-4 h-4 text-slate-400" />
+            <Languages className="w-4 h-4 text-emerald-500" />
+            <span className="font-medium text-emerald-700">Italiano</span>
+            <span className="ml-2 px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold">AI</span>
           </div>
 
-          <div className="relative max-w-3xl mx-auto rounded-2xl overflow-hidden border border-slate-200 bg-black shadow-2xl shadow-slate-900/10">
-            <div className="relative aspect-video bg-slate-900">
-              <div ref={playerContainerRef} className="absolute inset-0 w-full h-full" />
+          {/* Player card */}
+          <div className="rounded-2xl overflow-hidden border border-slate-200 shadow-2xl shadow-slate-900/10 bg-slate-950">
 
-              <AnimatePresence>
-                {qaOpen && (
-                  <QAOverlay
-                    videoTitle={`Video ${LANG_LABELS[selectedLang]}`}
-                    captionsContext={originalTrack.map((s) => s.text).join(' ')}
-                    onClose={() => setQaOpen(false)}
-                  />
-                )}
-              </AnimatePresence>
+            {/* Video area */}
+            <div className="relative aspect-video bg-slate-900 overflow-hidden">
 
-              <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-6 pointer-events-none z-10">
-                <div className="max-w-[90%] mx-auto text-center flex flex-col items-center justify-end gap-1.5">
-                  {loading && (
-                    <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-black/60 text-white text-xs">
-                      <span className="relative flex h-2 w-2">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
-                        <span className="relative inline-flex rounded-full h-2 w-2 bg-white" />
-                      </span>
-                      Caricamento sottotitoli...
-                    </div>
-                  )}
-                  {!loading && !bridgeReady && originalTrack.length === 0 && (
-                    <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-red-900/60 text-red-200 text-xs border border-red-500/30">
-                      <svg className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                      <span>Apri il video su YouTube e ricarica l'estensione</span>
-                    </div>
-                  )}
+              {/* Fallback thumbnail (visibile finché il player non è pronto) */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={activeLang.thumbnail}
+                alt={activeLang.videoTitle}
+                className="absolute inset-0 w-full h-full object-cover opacity-60"
+                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+              />
+
+              {/* Real YouTube player */}
+              <div ref={playerRef} className="absolute inset-0 w-full h-full" />
+
+              {/* Soft bottom gradient for legibility */}
+              <div className="absolute inset-0 pointer-events-none bg-gradient-to-t from-slate-950/50 via-transparent to-transparent" />
+
+              {/* Subtitle overlay */}
+              <div className="absolute bottom-0 left-0 right-0 px-4 sm:px-8 pb-16 sm:pb-20 pointer-events-none">
+                <div className="flex flex-col items-center gap-1.5">
                   <AnimatePresence mode="wait">
-                    {currentSegment && (
+                    {currentSeg && (
                       <motion.div
-                        key={`${selectedLang}-${currentSegment.start}`}
-                        variants={subtitleAnim}
+                        key={`${activeLang.code}-${currentSeg.start}`}
+                        variants={subtitleIn}
                         initial="initial"
                         animate="animate"
                         exit="exit"
-                        transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-                        className="inline-block bg-black/90 rounded-xl px-6 py-3 border-l-4 border-primary shadow-lg shadow-primary/20 font-sans"
+                        className="max-w-2xl w-full"
                       >
-                        {showOrig && (
-                          <p className="text-slate-400 text-xs sm:text-sm leading-relaxed mb-0.5 min-h-[1.25em]">
-                            {typedOriginal}
-                            <Cursor len={typedOriginal.length} total={originalText.length} />
-                          </p>
+                        {/* Original line */}
+                        {showOriginal && (
+                          <motion.div variants={originalIn} initial="initial" animate="animate"
+                            className="text-center mb-1.5"
+                          >
+                            <span className="inline-block bg-black/70 text-slate-400 text-xs sm:text-sm px-4 py-1 rounded-lg leading-relaxed font-normal">
+                              {currentSeg.original}
+                            </span>
+                          </motion.div>
                         )}
-                        <p className="text-white text-sm sm:text-base md:text-lg font-semibold leading-relaxed drop-shadow-lg min-h-[1.25em]">
-                          {typedTranslated}
-                          <Cursor len={typedTranslated.length} total={translationText.length} />
-                        </p>
+                        {/* Translated line */}
+                        <div className="text-center">
+                          <span
+                            className="inline-block px-5 py-2.5 rounded-xl text-sm sm:text-base md:text-lg font-bold leading-snug drop-shadow-xl"
+                            style={{
+                              background: 'rgba(0,0,0,0.88)',
+                              borderLeft: '3px solid var(--color-primary)',
+                              color: '#ffffff',
+                            }}
+                          >
+                            {currentSeg.translated}
+                          </span>
+                        </div>
                       </motion.div>
                     )}
                   </AnimatePresence>
                 </div>
-
-                <div className="absolute bottom-2 right-2 pointer-events-auto">
-                  <button
-                    onClick={() => {
-                      if (isTeam) {
-                        setQaOpen((prev) => !prev)
-                      } else {
-                        document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })
-                      }
-                    }}
-                    className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium transition-all shadow-lg ${
-                      isTeam
-                        ? 'bg-primary text-white hover:bg-primary/90 shadow-primary/25'
-                        : 'bg-slate-800/80 text-slate-300 hover:bg-slate-700 border border-slate-600/50'
-                    }`}
-                    title={isTeam ? 'Q&A con AI' : 'Disponibile con abbonamento Pro'}
-                  >
-                    <MessageCircle className="w-4 h-4" />
-                    <span>Q&A</span>
-                  </button>
-                </div>
               </div>
-            </div>
-          </div>
 
-          {originalTrack.length > 0 && (
-            <div className="mt-6 rounded-2xl border border-slate-200 bg-white shadow-lg shadow-slate-900/5 overflow-hidden">
+            </div>
+
+            {/* Transcript panel */}
+            <div className="bg-white border-t border-slate-100">
               <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100 bg-slate-50/60">
                 <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
                   <Sparkles className="w-4 h-4 text-primary" />
-                  <span>AI Transcript · {LANG_LABELS[selectedLang]} → Italiano</span>
+                  <span>Trascrizione AI · {activeLang.nativeName} → Italiano</span>
+                  <span className="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 text-[10px] font-bold">{activeLang.segments.length} segmenti</span>
                 </div>
-                <label className="flex items-center gap-2 text-xs text-slate-500 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={showOriginal}
-                    onChange={(e) => setShowOriginal(e.target.checked)}
-                    className="w-3.5 h-3.5 rounded border-slate-300 text-primary focus:ring-primary/30"
-                  />
-                  Mostra originale
-                </label>
+                <div className="flex items-center gap-4">
+                  <label className="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={showOriginal}
+                      onChange={e => setShowOriginal(e.target.checked)}
+                      className="w-3 h-3 rounded accent-primary"
+                    />
+                    Originale
+                  </label>
+                  <span className="text-xs text-slate-400">Clicca per saltare</span>
+                </div>
               </div>
-              <div className="divide-y divide-slate-100 max-h-72 overflow-y-auto">
-                {originalTrack.map((seg, i) => {
-                  const transSeg = translatedTrack.find((o) => o.start === seg.start)
+              <div className="divide-y divide-slate-100 max-h-64 overflow-y-auto">
+                {activeLang.segments.map((seg, i) => {
+                  const isActive = currentSeg?.start === seg.start
                   return (
                     <button
                       key={seg.start}
-                      onClick={() => {
-                        const player = playerRef.current
-                        if (!player) return
-                        try { player.seekTo(seg.start, true); player.playVideo() } catch { /* */ }
-                      }}
-                      className={`w-full text-left grid grid-cols-1 sm:grid-cols-[4rem_1fr_1fr] gap-2 sm:gap-4 px-5 py-3 transition-colors ${
-                        i === currentIndex
-                          ? 'bg-sky-50/80 border-l-4 border-primary'
-                          : 'hover:bg-slate-50/50 border-l-4 border-transparent'
+                      onClick={() => seekTo(i)}
+                      className={`w-full text-left grid grid-cols-[3.5rem_1fr_1fr] gap-3 px-5 py-2.5 transition-all duration-150 ${
+                        isActive
+                          ? 'bg-primary-50/80 border-l-[3px] border-l-primary'
+                          : 'hover:bg-slate-50/60 border-l-[3px] border-l-transparent'
                       }`}
                     >
-                      <div className="text-xs font-mono text-slate-400 sm:pt-0.5">
-                        {String(Math.floor(seg.start)).padStart(2, '0')}:{String(Math.round((seg.start % 1) * 60)).padStart(2, '0')}
+                      <div className={`text-xs font-mono pt-0.5 ${isActive ? 'text-primary font-semibold' : 'text-slate-400'}`}>
+                        {fmtTime(seg.start)}
                       </div>
-                      <div className="text-sm text-slate-600 leading-relaxed text-left">{seg.text}</div>
-                      <div className="text-sm font-semibold text-slate-900 leading-relaxed text-left">{transSeg?.text || ''}</div>
+                      <div className={`text-xs leading-relaxed ${isActive ? 'text-slate-700' : 'text-slate-500'}`}>
+                        {seg.original}
+                      </div>
+                      <div className={`text-xs font-semibold leading-relaxed ${isActive ? 'text-slate-900' : 'text-slate-700'}`}>
+                        {seg.translated}
+                      </div>
                     </button>
                   )
                 })}
               </div>
             </div>
-          )}
+          </div>
+
+          {/* Bottom note */}
+          <p className="text-center text-xs text-slate-400 mt-5">
+            Demo con trascrizioni reali dei video e traduzione AI · La qualità nella versione reale è identica.
+          </p>
         </motion.div>
       </div>
     </section>

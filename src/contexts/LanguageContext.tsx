@@ -26,14 +26,17 @@ export const useLanguage = () => {
 export const LanguageProvider = ({ children }: { children: ReactNode }) => {
   const [language, setLanguage] = useState(() => {
     if (typeof window !== 'undefined') {
-      return localStorage.getItem('language') || 'it'
+      // Solo 'it' | 'en', default italiano
+      return localStorage.getItem('language') === 'en' ? 'en' : 'it'
     }
     return 'it'
   })
 
   const changeLanguage = (lang: string) => {
-    setLanguage(lang)
-    localStorage.setItem('language', lang)
+    // Solo 'it' | 'en': qualunque altro valore ripiega su italiano
+    const normalized = lang === 'en' ? 'en' : 'it'
+    setLanguage(normalized)
+    localStorage.setItem('language', normalized)
   }
 
   const translations: Record<string, Record<string, string>> = {

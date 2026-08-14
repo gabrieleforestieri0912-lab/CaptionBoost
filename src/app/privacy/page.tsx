@@ -3,7 +3,7 @@ import { ArrowLeft } from "lucide-react";
 
 export default function PrivacyPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-sky-50 to-white">
+    <div className="min-h-screen bg-gradient-to-b from-primary-50 to-white">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         <Link href="/" className="inline-flex items-center gap-2 text-sm text-slate-600 hover:text-primary transition-colors mb-8">
           <ArrowLeft className="w-4 h-4" />

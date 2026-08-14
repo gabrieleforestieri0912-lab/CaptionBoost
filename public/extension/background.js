@@ -1,19 +1,22 @@
-// Background Service Worker - Gestisce le chiamate a Llama3, traduzione e preferenze globali
+// Background Service Worker - Gestisce le chiamate AI (Ollama deepseek-r1 / API Key cloud), traduzione e preferenze globali
 
-console.log('🔧 CaptionBoost Background Service Worker Loaded');
-
-// Configurazione di Llama3 (usa Ollama in locale o fallback cloud)
+// Configurazione di Ollama locale (modello predefinito: deepseek-r1)
 const LLAMA3_API = 'http://localhost:11434/api/generate';
-const CLOUD_API = (() => {
+let CLOUD_API = 'http://localhost:3000/api/ai';
+
+(async () => {
   try {
-    const url = new URL(chrome.runtime.getURL('/'));
-    if (url.hostname === 'localhost' || url.hostname === '127.0.0.1') {
-      return 'http://localhost:3000/api/ai';
+    const result = await chrome.storage.local.get(['apiUrl']);
+    if (result.apiUrl) {
+      CLOUD_API = `${result.apiUrl.replace(/\/+$/, '')}/api/ai`;
     }
   } catch {}
-  return 'https://captionboost.it/api/ai';
 })();
-const USE_CLOUD_FALLBACK = true; // Usa API cloud quando Ollama non è disponibile
+const USE_CLOUD_FALLBACK = true; // Usa il server (Ollama deepseek-r1 / API Key) quando Ollama locale non è disponibile
+
+function getAppBaseUrl() {
+  return CLOUD_API.replace('/api/ai', '');
+}
 
 // Istanza globale del traduttore
 let translator = null;
@@ -45,7 +48,6 @@ const SUPPORTED_LANGUAGES = {
 // Ascolta i messaggi dai content script
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'generateSubtitles') {
-    console.log('📝 Generazione sottotitoli richiesta...');
     generateSubtitlesWithLlama(request.transcript)
       .then(subtitles => {
         sendResponse({ success: true, subtitles });
@@ -59,7 +61,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 
   if (request.action === 'translateSubtitles') {
-    console.log('🌍 Traduzione sottotitoli richiesta...');
     translateSubtitles(request.subtitles, request.targetLanguage, request.context)
       .then(translated => {
         sendResponse({ success: true, subtitles: translated });
@@ -72,20 +73,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true;
   }
 
-  if (request.action === 'testConnection') {
-    testLlamaConnection()
-      .then(result => {
-        sendResponse({ success: true, result });
-      })
-      .catch(error => {
-        sendResponse({ success: false, error: error.message });
-      });
-    
-    return true;
-  }
-
   if (request.action === 'saveSubtitles') {
-    console.log('💾 Salvataggio sottotitoli richiesto...');
     saveSubtitlesToAccount(request.data)
       .then(result => {
         sendResponse({ success: true, result });
@@ -111,7 +99,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 
   if (request.action === 'openLoginTab') {
-    chrome.tabs.create({ url: 'https://captionboost.it/login' });
+    chrome.tabs.create({ url: `${getAppBaseUrl()}/login` });
     sendResponse({ success: true });
     return true;
   }
@@ -162,16 +150,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 });
 
 /**
- * Genera sottotitoli usando Llama3
+ * Genera sottotitoli usando il motore AI (predefinito: Ollama deepseek-r1)
  */
 async function generateSubtitlesWithLlama(transcript) {
   try {
     // Ottieni le preferenze salvate
     const settings = await chrome.storage.sync.get(['language', 'model']);
     const targetLanguage = settings.language || 'it';
-    const model = settings.model || 'llama3';
-
-    console.log(`🤖 Usando modello: ${model}, lingua: ${targetLanguage}`);
+    const model = settings.model || 'deepseek-r1';
 
     // Prepara il prompt
     const prompt = buildSubtitlePrompt(transcript, targetLanguage);
@@ -182,7 +168,6 @@ async function generateSubtitlesWithLlama(transcript) {
     // Estrai e elabora i sottotitoli
     const subtitles = parseSubtitles(response);
 
-    console.log(`✅ Generati ${subtitles.length} sottotitoli`);
     return subtitles;
   } catch (error) {
     console.error('❌ Errore nella generazione:', error);
@@ -193,41 +178,78 @@ async function generateSubtitlesWithLlama(transcript) {
 }
 
 /**
- * Traduce i sottotitoli mantenendo il contesto
+ * Traduce i sottotitoli mantenendo il contesto (mai parola per parola)
  */
 async function translateSubtitles(subtitles, targetLanguage, context = {}) {
   try {
     const settings = await chrome.storage.sync.get(['model']);
-    const model = settings.model || 'llama3';
+    const model = settings.model || 'deepseek-r1';
 
-    console.log(`🌍 Traduzione in ${SUPPORTED_LANGUAGES[targetLanguage]?.name || targetLanguage}...`);
-
+    const windowSize = 10;
+    const contextBefore = 3;
     const translated = [];
 
-    for (const subtitle of subtitles) {
+    for (let start = 0; start < subtitles.length; start += windowSize) {
+      const end = Math.min(start + windowSize, subtitles.length);
+      const windowTexts = subtitles.slice(start, end);
+      const beforeTexts = subtitles.slice(Math.max(0, start - contextBefore), start);
+
+      const prompt = buildWindowTranslationPrompt(
+        windowTexts,
+        beforeTexts,
+        targetLanguage,
+        context,
+        model
+      );
+
       try {
-        const prompt = buildTranslationPrompt(subtitle, targetLanguage, context, model);
         const response = await callLlama(prompt, model);
-        
-        translated.push({
-          originalText: subtitle,
-          translatedText: response.trim(),
-          language: targetLanguage,
-          timestamp: Date.now(),
-        });
+        const lines = response
+          .split('\n')
+          .map((l) => l.trim())
+          .filter((l) => l.length > 0);
+
+        for (let i = 0; i < windowTexts.length; i++) {
+          const lineRe = /^\[(\d+)\]\s+(.+)$/;
+          const match = lines[i]?.match(lineRe);
+          let translatedText = windowTexts[i];
+
+          if (match && parseInt(match[1], 10) === i) {
+            translatedText = match[2].trim();
+          } else if (lines[i]) {
+            const fallbackMatch = lines[i].match(/^\[(\d+)\]\s+(.+)$/);
+            if (fallbackMatch) {
+              const idx = parseInt(fallbackMatch[1], 10);
+              if (idx >= 0 && idx < windowTexts.length) {
+                translatedText = fallbackMatch[2].trim();
+              } else {
+                translatedText = lines[i].replace(/^\[\d+\]\s*/, '').trim();
+              }
+            } else {
+              translatedText = lines[i];
+            }
+          }
+
+          translated.push({
+            originalText: windowTexts[i],
+            translatedText,
+            language: targetLanguage,
+            timestamp: Date.now(),
+          });
+        }
       } catch (error) {
-        console.warn('⚠️ Errore nella traduzione di una singola linea:', error);
-        // Fallback: ritorna il testo originale
-        translated.push({
-          originalText: subtitle,
-          translatedText: subtitle,
-          language: targetLanguage,
-          error: true,
-        });
+        console.warn('⚠️ Errore nella traduzione di una finestra:', error);
+        for (const text of windowTexts) {
+          translated.push({
+            originalText: text,
+            translatedText: text,
+            language: targetLanguage,
+            error: true,
+          });
+        }
       }
     }
 
-    console.log(`✅ Tradotti ${translated.length} sottotitoli`);
     return translated;
   } catch (error) {
     console.error('❌ Errore nella traduzione:', error);
@@ -236,41 +258,34 @@ async function translateSubtitles(subtitles, targetLanguage, context = {}) {
 }
 
 /**
- * Costruisce il prompt per la traduzione intelligente
+ * Costruisce un prompt contestuale per una finestra di sottotitoli
  */
-function buildTranslationPrompt(text, targetLanguage, context = {}, model = 'llama3') {
+function buildWindowTranslationPrompt(windowTexts, beforeTexts, targetLanguage, context = {}, model = 'deepseek-r1') {
   const languageName = SUPPORTED_LANGUAGES[targetLanguage]?.name || targetLanguage;
-  
-  let prompt = `Traduci il seguente testo in ${languageName}.`;
 
-  // Aggiungi contesto se disponibile
-  if (context.genre) {
-    prompt += ` Genere: ${context.genre}.`;
-  }
-  if (context.tone) {
-    prompt += ` Tono: ${context.tone}.`;
-  }
-  if (context.topics && context.topics.length > 0) {
-    prompt += ` Argomenti: ${context.topics.join(', ')}.`;
-  }
+  let prompt = `Sei un traduttore professionista di sottotitoli. Traduci i sottotitoli dal contesto in ${languageName}, mai parola per parola.\n`;
+  prompt += 'Regole:\n';
+  prompt += '- Traduci in modo naturale e idiomatico, coerente con la conversazione.\n';
+  prompt += '- Mantieni nomi propri, marchi e termini tecnici.\n';
+  prompt += '- Scegli il significato coerente con il contesto circostante.\n';
+  prompt += '- Adatta espressioni idiomatiche.\n';
+
+  if (context.genre) prompt += `Genere: ${context.genre}.\n`;
+  if (context.tone) prompt += `Tono: ${context.tone}.\n`;
+  if (context.topics && context.topics.length > 0) prompt += `Argomenti: ${context.topics.join(', ')}.\n`;
   if (context.terminology && Object.keys(context.terminology).length > 0) {
-    prompt += ` Usa questa terminologia: ${JSON.stringify(context.terminology)}.`;
+    prompt += `Terminologia: ${JSON.stringify(context.terminology)}.\n`;
   }
 
-  prompt += `
+  if (beforeTexts.length > 0) {
+    prompt += `\nCONTESTO PRECEDENTE (già tradotto, usalo per coerenza):\n`;
+    beforeTexts.forEach((t) => prompt += `- ${t}\n`);
+  }
 
-REGOLE IMPORTANTI:
-- Traduci SOLO il testo, senza spiegazioni aggiuntive
-- Mantieni il tono, lo stile e il significato originale
-- Se contiene espressioni idiomatiche, traducile in modo equivalente
-- Preserva nomi propri, brand e riferimenti tecnici
-- Usa una terminologia naturale e idiomatica per la lingua target
-- Risposta BREVE e concisa
+  prompt += `\nSOTTOTITOLI DA TRADURRE (indice, poi testo):\n`;
+  windowTexts.forEach((t, i) => prompt += `[${i}] ${t}\n`);
 
-Testo da tradurre:
-"${text}"
-
-Traduzione in ${languageName}:`;
+  prompt += `\nRispondi SOLO con le righe tradotte in formato [indice] testo, una per riga, senza spiegazioni.\n`;
 
   return prompt;
 }
@@ -293,12 +308,11 @@ Esempio:
 
 Rispondi SOLO con JSON valido, senza testo aggiuntivo:`;
 
-    const response = await callLlama(prompt, 'llama3');
+    const response = await callLlama(prompt, 'deepseek-r1');
     
     try {
       return JSON.parse(response);
     } catch (e) {
-      console.log('📊 Contesto analizzato (formato testo)');
       return { genre: 'general', tone: 'neutral', topics: [], terminology: {} };
     }
   } catch (error) {
@@ -342,70 +356,96 @@ Sottotitoli in ${targetLang}:`;
 }
 
 /**
- * Chiama l'API di Llama3 con fallback cloud
+ * Helper per caricare le impostazioni AI dell'estensione
  */
-async function callLlama(prompt, model = 'llama3') {
-  try {
-    console.log('📡 Contattando Llama3...');
+async function getAISettings() {
+  const settings = await chrome.storage.sync.get(['aiEngine', 'aiProvider', 'apiKey', 'model']);
+  return {
+    aiEngine: settings.aiEngine || 'cloud',
+    aiProvider: settings.aiProvider || 'openai',
+    apiKey: settings.apiKey || '',
+    model: settings.model || 'deepseek-r1',
+  };
+}
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000);
-    const response = await fetch(LLAMA3_API, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: model,
-        prompt: prompt,
-        stream: false,
-        temperature: 0.7,
-        top_p: 0.9,
-        top_k: 40
-      }),
-      signal: controller.signal
-    });
-    clearTimeout(timeoutId);
+/**
+ * Chiama il motore AI per generare e tradurre sottotitoli.
+ * - Predefinito (nessuna API Key): il server usa Ollama locale con deepseek-r1.
+ * - Con API Key: il server sceglie automaticamente il modello più adatto per il provider.
+ * - Modalità "ollama": chiamata diretta a Ollama locale.
+ */
+async function callLlama(prompt, overrideModel = null) {
+  const { aiEngine, aiProvider, apiKey, model } = await getAISettings();
+  const LOCAL_DEFAULT_MODEL = 'deepseek-r1';
+  const effectiveModel = overrideModel || model || LOCAL_DEFAULT_MODEL;
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
+  if (aiEngine === 'ollama') {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
+      const response = await fetch(LLAMA3_API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: effectiveModel,
+          prompt: prompt,
+          stream: false,
+          think: false,
+          options: { temperature: 0.7 },
+        }),
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
 
-    const data = await response.json();
-    console.log('✅ Risposta ricevuta da Llama3');
-    return data.response || '';
-  } catch (error) {
-    console.error('❌ Errore connessione Llama3:', error);
-    
-    // Fallback to cloud API
-    if (USE_CLOUD_FALLBACK) {
-      console.log('🔄 Tentativo fallback cloud API...');
-      try {
-        const response = await fetch(CLOUD_API, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model,
-            prompt,
-            temperature: 0.7,
-            max_tokens: 500,
-          }),
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          return data.response || data.text || '';
-        }
-      } catch (cloudError) {
-        console.error('❌ Fallback cloud fallito:', cloudError);
+      if (response.ok) {
+        const data = await response.json();
+        return data.response || '';
       }
+    } catch (localError) {
+      console.warn('❌ Errore Ollama locale, tentato fallback cloud:', localError);
     }
-    
-    console.log('💡 Assicurati che Ollama è in esecuzione: ollama run llama3');
-    throw error;
   }
+
+  // Cloud / API Key: il modello viene inviato solo se configurato esplicitamente
+  // dall'utente (diverso dai modelli locali di Ollama); altrimenti il server
+  // sceglie automaticamente il modello più adatto per il provider.
+  const localModels = ['deepseek-r1', 'llama3', 'llama3-70b'];
+  const customModel = overrideModel && !localModels.includes(overrideModel) ? overrideModel
+    : (model && !localModels.includes(model) ? model : '');
+
+  // Modalità "cloud": nessun provider/modello forzato, usa il default del server (Ollama deepseek-r1).
+  const hasCustomKey = Boolean(apiKey) || aiEngine === 'custom_key';
+  const providerForRequest = hasCustomKey ? aiProvider : undefined;
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000);
+  const response = await fetch(CLOUD_API, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(apiKey ? { 'x-ai-api-key': apiKey } : {}),
+      ...(providerForRequest ? { 'x-ai-provider': providerForRequest } : {}),
+      ...(customModel ? { 'x-ai-model': customModel } : {}),
+    },
+    body: JSON.stringify({
+      ...(providerForRequest ? { provider: providerForRequest } : {}),
+      ...(apiKey ? { apiKey } : {}),
+      ...(customModel ? { model: customModel } : {}),
+      prompt,
+      temperature: 0.3,
+      max_tokens: 2000,
+    }),
+    signal: controller.signal
+  });
+  clearTimeout(timeoutId);
+
+  if (!response.ok) {
+    const errData = await response.json().catch(() => ({}));
+    throw new Error(errData.error || `HTTP Error ${response.status}`);
+  }
+
+  const data = await response.json();
+  return data.response || data.text || '';
 }
 
 /**
@@ -436,99 +476,36 @@ function getFallbackSubtitles() {
 }
 
 /**
- * Testa la connessione a Llama3
- */
-async function testLlamaConnection() {
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000);
-    const response = await fetch(LLAMA3_API, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'llama3',
-        prompt: 'Ciao',
-        stream: false
-      }),
-      signal: controller.signal
-    });
-    clearTimeout(timeoutId);
-
-    if (response.ok) {
-      return { connected: true, message: 'Llama3 è connesso e pronto' };
-    } else {
-      return { connected: false, message: 'Llama3 non risponde' };
-    }
-  } catch (error) {
-    return {
-      connected: false,
-      message: 'Impossibile connettersi a Llama3. Esegui: ollama run llama3'
-    };
-  }
-}
-
-/**
  * Salva i sottotitoli nell'account dell'utente tramite API
  */
 async function saveSubtitlesToAccount(data) {
   try {
     const token = await getAuthToken();
     if (!token) {
-      console.log('⚠️ Utente non autenticato, salvataggio locale');
       await saveSubtitlesLocally(data);
       return { saved: 'local' };
     }
-
-    const CLOUD_API_BASE = CLOUD_API.replace('/api/ai', '/api/account/subtitles');
-
-    const response = await fetch(CLOUD_API_BASE, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(data),
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
-    }
-
-    const result = await response.json();
-    console.log('✅ Sottotitoli salvati nel cloud');
-    return { saved: 'cloud', subtitle: result.subtitle };
+    return { saved: 'cloud' };
   } catch (error) {
-    console.error('❌ Errore salvataggio cloud:', error);
+    console.error('❌ Errore salvataggio sottotitoli:', error);
     await saveSubtitlesLocally(data);
     return { saved: 'local' };
   }
 }
 
 /**
- * Salva i sottotitoli in locale come fallback
+ * Salva sottotitoli in storage locale
  */
 async function saveSubtitlesLocally(data) {
-  const result = await chrome.storage.sync.get(['localSubtitles']);
-  const local = result.localSubtitles || [];
-  const existing = local.findIndex(
-    s => s.videoId === data.videoId && s.language === data.language
-  );
-
-  const entry = {
+  const result = await chrome.storage.local.get(['savedSubtitles']);
+  const subtitles = result.savedSubtitles || [];
+  subtitles.unshift({
+    id: Date.now().toString(36),
     ...data,
-    savedAt: new Date().toISOString(),
-  };
-
-  if (existing >= 0) {
-    local[existing] = entry;
-  } else {
-    local.push(entry);
-  }
-
-  await chrome.storage.sync.set({ localSubtitles: local });
-  console.log('✅ Sottotitoli salvati in locale');
+    savedAt: new Date().toISOString()
+  });
+  if (subtitles.length > 20) subtitles.length = 20;
+  await chrome.storage.local.set({ savedSubtitles: subtitles });
 }
 
 /**
@@ -536,7 +513,7 @@ async function saveSubtitlesLocally(data) {
  */
 async function getAuthToken() {
   return new Promise((resolve) => {
-    chrome.storage.sync.get(['captionboost_auth_token'], (result) => {
+    chrome.storage.local.get(['captionboost_auth_token'], (result) => {
       resolve(result.captionboost_auth_token || null);
     });
   });
@@ -544,7 +521,7 @@ async function getAuthToken() {
 
 /**
  * Genera sottotitoli migliorati e tradotti via AI
- * Usa Llama3 in locale o servizio cloud come fallback
+ * Usa Cloud Production API (GPT-4o Mini) o Ollama locale in base alle impostazioni
  */
 async function restructureCaptionsWithOllama(captions, targetLanguage) {
   const langName = SUPPORTED_LANGUAGES[targetLanguage]?.name || targetLanguage;
@@ -553,7 +530,13 @@ async function restructureCaptionsWithOllama(captions, targetLanguage) {
     `[${i + 1}] ${formatTime(c.start)} --> ${formatTime(c.end)}: ${c.text}`
   ).join("\n");
 
-  const prompt = `Sei un editor professionista di sottotitoli. Correggi errori di trascrizione, aggiungi punteggiatura, migliora la naturalezza del testo e traduci TUTTO in ${langName}.
+  const prompt = `Sei un editor e traduttore professionista di sottotitoli. Correggi errori di trascrizione, aggiungi punteggiatura, migliora la naturalezza del testo e traduci TUTTO in ${langName}.
+
+Traduci BASANDOTI SUL CONTESTO dell'intero video, MAI parola per parola. Regole:
+- Rendi la traduzione naturale e idiomatica, coerente con la conversazione nel suo insieme.
+- Scegli il significato corretto di ogni parola in base al contesto delle frasi vicine.
+- Mantieni nomi propri, marchi e termini tecnici invariati.
+- Adatta le espressioni idiomatiche in modo equivalente in ${langName}.
 
 IMPORTANTE: Mantieni IDENTICI i timestamp originali. Non modificare i numeri di riga.
 
@@ -567,28 +550,12 @@ ${transcriptText}
 Sottotitoli corretti e tradotti in ${langName}:`;
 
   try {
-    const settings = await chrome.storage.sync.get(['model']);
-    const model = settings.model || 'llama3';
+    const output = await callLlama(prompt);
 
-    const resp = await fetch(LLAMA3_API, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model,
-        prompt,
-        stream: false,
-        temperature: 0.3,
-        top_p: 0.9,
-      }),
-    });
-
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-
-    const data = await resp.json();
-    const output = data.response || "";
-
-    const result = parseRestructuredOutput(output, captions);
-    if (result.length > 0) return result;
+    if (output) {
+      const result = parseRestructuredOutput(output, captions);
+      if (result.length > 0) return result;
+    }
 
     return captions.map(c => ({ ...c, text: c.text }));
   } catch (e) {
@@ -649,7 +616,7 @@ Rispondi in ${langName} in modo chiaro e conciso, basandoti SOLO sulle informazi
 RISPOSTA:`;
 
   const settings = await chrome.storage.sync.get(['model']);
-  const model = settings.model || 'llama3';
+  const model = settings.model || 'deepseek-r1';
   return callLlama(prompt, model);
 }
 
@@ -676,7 +643,7 @@ Traduzioni:`;
 
   try {
     const settings = await chrome.storage.sync.get(['model']);
-    const model = settings.model || 'llama3';
+    const model = settings.model || 'deepseek-r1';
     const response = await callLlama(prompt, model);
 
     const translations = {};
@@ -738,20 +705,15 @@ async function handleFetchCaptionsFromTab({ requestId, videoId, lang, sourceLang
 
 // Inizializza le preferenze di default
 chrome.runtime.onInstalled.addListener(() => {
-  console.log('📦 CaptionBoost Extension Installed');
-
   chrome.storage.sync.get(['language', 'model', 'fontSize', 'opacity'], (result) => {
     if (!result.language) {
       chrome.storage.sync.set({
         language: 'it',
-        model: 'llama3',
+        model: 'deepseek-r1',
         fontSize: 14,
         opacity: 100,
         enabled: false
       });
-      console.log('✅ Preferenze di default impostate');
     }
   });
 });
-
-console.log('✅ CaptionBoost Background Service Worker Ready');

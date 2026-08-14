@@ -1,16 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-
-const googleEnabled = !!(
-  process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID &&
-  process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID.length > 0
-);
+import { createBrowserSupabase } from "@/lib/supabase-browser";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -38,31 +33,23 @@ export default function SignupPage() {
     setLoading(true);
 
     try {
-      const res = await fetch("/api/auth/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, password }),
+      const supabase = createBrowserSupabase();
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { data: { name } },
       });
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        setError(data.error || "Registration failed");
-        setLoading(false);
+      if (error) {
+        setError(error.message || "Registration failed");
         return;
       }
 
-      const result = await signIn("credentials", {
-        redirect: false,
-        email,
-        password,
-      });
-
-      if (result?.error) {
-        setError("Registration successful but sign in failed. Please try logging in.");
-      } else {
+      if (data.session) {
         router.push("/");
         router.refresh();
+      } else {
+        setError("Registrazione completata! Controlla la tua email per confermare l'account.");
       }
     } catch (err) {
       setError("An error occurred. Please try again.");
@@ -71,8 +58,19 @@ export default function SignupPage() {
     }
   };
 
-  const handleGoogleSignIn = () => {
-    signIn("google", { callbackUrl: "/" });
+  const handleGoogleSignIn = async () => {
+    try {
+      const supabase = createBrowserSupabase();
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
+      if (error) setError(error.message);
+    } catch (err) {
+      setError("An error occurred. Please try again.");
+    }
   };
 
   return (
@@ -170,8 +168,7 @@ export default function SignupPage() {
             </button>
           </form>
 
-          {googleEnabled && (
-            <div className="mt-6">
+          <div className="mt-6">
               <div className="relative">
                 <div className="absolute inset-0 flex items-center">
                   <div className="w-full border-t border-slate-200" />
@@ -189,7 +186,6 @@ export default function SignupPage() {
                 Registrati con Google
               </button>
             </div>
-          )}
 
           <p className="mt-6 text-center text-sm text-slate-500">
             Already have an account?{" "}

@@ -2,11 +2,26 @@ import { NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { updateUser, updateUserPassword } from '@/lib/db'
 import { getAuthenticatedUser } from '@/lib/get-user'
+import { createServerSupabase } from '@/lib/supabase-server'
 
 export async function GET(request: Request) {
-  const { session, user } = await getAuthenticatedUser(request)
+  const { user } = await getAuthenticatedUser(request)
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  // Con Supabase Auth la password è gestita da Supabase: la rileviamo dal provider
+  // dell'utente (email = password, google = accesso sociale).
+  let hasPassword = Boolean(user.password)
+  try {
+    const supabase = await createServerSupabase()
+    const {
+      data: { user: authUser },
+    } = await supabase.auth.getUser()
+    if (authUser?.app_metadata?.provider === 'email') hasPassword = true
+    if (authUser?.app_metadata?.provider === 'google') hasPassword = false
+  } catch {
+    // nessuna sessione Supabase: resta il valore legacy
   }
 
   const planInfo = {
@@ -22,7 +37,7 @@ export async function GET(request: Request) {
       name: user.name || '',
       email: user.email || '',
       image: user.image || null,
-      hasPassword: Boolean(user.password),
+      hasPassword,
     },
     plan: planInfo,
   })
@@ -77,16 +92,60 @@ export async function PUT(request: Request) {
       )
     }
 
-    if (!user.password) {
+    if (!currentPassword || typeof currentPassword !== 'string') {
       return NextResponse.json(
-        { error: 'Password change is not available for this account' },
+        { error: 'Current password is required' },
         { status: 400 }
       )
     }
 
-    if (!currentPassword || typeof currentPassword !== 'string') {
+    // Percorso Supabase Auth (web): la password è gestita da Supabase
+    try {
+      const supabase = await createServerSupabase()
+      const {
+        data: { user: authUser },
+      } = await supabase.auth.getUser()
+
+      if (authUser) {
+        if (authUser.app_metadata?.provider === 'google') {
+          return NextResponse.json(
+            { error: 'Password change is not available for this account' },
+            { status: 400 }
+          )
+        }
+
+        const { error: verifyErr } = await supabase.auth.signInWithPassword({
+          email: authUser.email || '',
+          password: currentPassword,
+        })
+        if (verifyErr) {
+          return NextResponse.json(
+            { error: 'Current password is incorrect' },
+            { status: 400 }
+          )
+        }
+
+        const { error: updateErr } = await supabase.auth.updateUser({
+          password: newPassword,
+        })
+        if (updateErr) {
+          console.error('Supabase password update error:', updateErr)
+          return NextResponse.json(
+            { error: 'Failed to update password' },
+            { status: 500 }
+          )
+        }
+
+        return NextResponse.json({ message: 'Password updated successfully' })
+      }
+    } catch (error) {
+      console.error('Supabase password update error:', error)
+    }
+
+    // Percorso legacy (token Bearer / utenti con password nella tabella users)
+    if (!user.password) {
       return NextResponse.json(
-        { error: 'Current password is required' },
+        { error: 'Password change is not available for this account' },
         { status: 400 }
       )
     }

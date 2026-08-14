@@ -14,6 +14,9 @@ export async function sendLoginCodeEmail(
   email: string,
   code: string
 ): Promise<boolean> {
+  // Stampa il codice nel terminale per testare l'accesso senza SMTP configurato
+  console.log('\n📧 LOGIN CODE per', email, '→', code, '\n')
+
   try {
     const info = await transporter.sendMail({
       from:
@@ -31,7 +34,7 @@ export async function sendLoginCodeEmail(
               Usa il codice qui sotto per accedere a CaptionBoost. Il codice scade tra 10 minuti.
             </p>
             <div style="text-align: center; margin-bottom: 24px;">
-              <div style="display: inline-block; background: #f0f9ff; border: 2px dashed #0ea5e9; border-radius: 12px; padding: 16px 32px; font-size: 32px; font-weight: 700; letter-spacing: 8px; color: #0ea5e9;">
+              <div style="display: inline-block; background: #EDF4FF; border: 2px dashed #4C94FF; border-radius: 12px; padding: 16px 32px; font-size: 32px; font-weight: 700; letter-spacing: 8px; color: #4C94FF;">
                 ${code}
               </div>
             </div>
@@ -43,8 +46,6 @@ export async function sendLoginCodeEmail(
       `,
     })
 
-    console.log(`✅ Login code email sent to ${email} (id: ${info.messageId})`)
-    console.log(`📧 Login code: ${code}`)
     return true
   } catch (error) {
     console.error(
@@ -80,7 +81,7 @@ export async function sendPasswordResetEmail(
               Use the code below to reset your password. This code expires in 10 minutes.
             </p>
             <div style="text-align: center; margin-bottom: 24px;">
-              <div style="display: inline-block; background: #f0f9ff; border: 2px dashed #0ea5e9; border-radius: 12px; padding: 16px 32px; font-size: 32px; font-weight: 700; letter-spacing: 8px; color: #0ea5e9;">
+              <div style="display: inline-block; background: #EDF4FF; border: 2px dashed #4C94FF; border-radius: 12px; padding: 16px 32px; font-size: 32px; font-weight: 700; letter-spacing: 8px; color: #4C94FF;">
                 ${code}
               </div>
             </div>
@@ -88,7 +89,7 @@ export async function sendPasswordResetEmail(
               Or click the button below to reset your password:
             </p>
             <div style="text-align: center; margin-bottom: 24px;">
-              <a href="${resetUrl}" style="display: inline-block; background: #0ea5e9; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 12px; font-weight: 600; font-size: 16px;">
+              <a href="${resetUrl}" style="display: inline-block; background: #4C94FF; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 12px; font-weight: 600; font-size: 16px;">
                 Reset Password
               </a>
             </div>
@@ -100,10 +101,6 @@ export async function sendPasswordResetEmail(
       `,
     })
 
-    console.log(
-      `✅ Password reset email sent to ${email} (id: ${info.messageId})`
-    )
-    console.log(`📧 Reset code: ${code}`)
     return true
   } catch (error) {
     console.error(

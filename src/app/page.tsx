@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense } from "react";
-import { useSession, signOut } from "next-auth/react";
+import { useAuth } from "@/components/AuthProvider";
 import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
@@ -100,7 +100,7 @@ const features = [
 ];
 
 export default function Home() {
-  const { data: session } = useSession();
+  const { user: session, signOut } = useAuth();
   const { language, t } = useLanguage();
   const [isScrolled, setIsScrolled] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -171,28 +171,28 @@ export default function Home() {
 
               <div className="flex items-center gap-2">
                 <div className="hidden sm:flex items-center gap-2">
-                  {session?.user ? (
+                  {session ? (
                     <div className="relative" ref={userMenuRef}>
                       <button
                         onClick={() => setShowUserMenu(!showUserMenu)}
                         className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 rounded-xl"
                       >
-                        {session.user.image && (
+                        {session.image && (
                           <Image
-                            src={session.user.image}
-                            alt={session.user.name || "User"}
+                            src={session.image}
+                            alt={session.name || "User"}
                             width={28}
                             height={28}
                             className="rounded-full ring-2 ring-slate-100"
                           />
                         )}
-                        <span className="hidden sm:inline">{session.user.name?.split(" ")[0] || "Account"}</span>
+                        <span className="hidden sm:inline">{session.name?.split(" ")[0] || "Account"}</span>
                       </button>
                       {showUserMenu && (
                         <div className="absolute right-0 mt-2 w-56 bg-white border border-slate-100 rounded-2xl shadow-2xl py-2 z-50 ring-1 ring-slate-900/5">
                           <div className="px-4 py-3 border-b border-slate-50 mb-1">
                             <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Account</p>
-                            <p className="text-sm font-bold text-slate-900 truncate">{session.user.email}</p>
+                            <p className="text-sm font-bold text-slate-900 truncate">{session.email}</p>
                           </div>
                           <Link href="/settings" className="block px-4 py-2 text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-50">
                             {t("settings")}
@@ -257,7 +257,7 @@ export default function Home() {
                   </Link>
                 ))}
                 <hr className="my-2 border-slate-100" />
-                {session?.user ? (
+                {session ? (
                   <>
                     <Link href="/account" onClick={() => setMobileMenuOpen(false)} className="block px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 rounded-xl">
                       I miei sottotitoli
@@ -292,7 +292,7 @@ export default function Home() {
                   variants={staggerContainer}
                 >
                   <motion.div variants={fadeInUp}>
-                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-sky-50 border border-sky-200/50 rounded-full text-sm font-medium text-primary mb-6">
+                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary-50 border border-primary-200/50 rounded-full text-sm font-medium text-primary mb-6">
                       <Sparkles className="w-4 h-4" />
                       <span>AI-powered subtitle translation</span>
                     </div>
@@ -303,12 +303,12 @@ export default function Home() {
                     className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-[1.1] tracking-tight"
                   >
                     <span className="text-slate-900">
-                        I sottotitoli automatici di <span className="text-[#FF0000]">YouTube</span> sono <span className="text-slate-900 underline underline-offset-4 decoration-2 decoration-blue-400/60">imprecisi</span>.
+                        I sottotitoli automatici di <span className="text-[#FF0000]">YouTube</span> sono <span className="text-slate-900 underline underline-offset-4 decoration-2 decoration-primary/60">imprecisi</span>.
                     </span>
                     <br />
-                    <span className="text-slate-900 underline underline-offset-4 decoration-2 decoration-blue-400/60">CaptionBoost</span>
+                    <span className="text-slate-900 underline underline-offset-4 decoration-2 decoration-primary/60">CaptionBoost</span>
                     <span className="text-slate-900"> li </span>
-                    <span className="text-slate-900 underline underline-offset-4 decoration-2 decoration-blue-400/60">perfeziona</span>
+                    <span className="text-slate-900 underline underline-offset-4 decoration-2 decoration-primary/60">perfeziona</span>
                     <span className="text-slate-900">.</span>
                   </motion.h1>
 
@@ -317,7 +317,7 @@ export default function Home() {
                     className="mt-6 text-xl sm:text-2xl text-slate-800 font-semibold"
                   >
                     <span className="text-slate-900">
-                      Genera <span className="text-slate-900 underline underline-offset-4 decoration-2 decoration-blue-400/60">sottotitoli AI accurati</span> per qualsiasi video.
+                      Genera <span className="text-slate-900 underline underline-offset-4 decoration-2 decoration-primary/60">sottotitoli AI accurati</span> per qualsiasi video.
                     </span>
                   </motion.p>
 
@@ -382,7 +382,7 @@ export default function Home() {
                 transition={{ duration: 0.6 }}
                 className="text-center mb-10"
               >
-                <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-sky-50 border border-sky-200/50 rounded-full text-xs font-medium text-primary mb-3">
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-primary-50 border border-primary-200/50 rounded-full text-xs font-medium text-primary mb-3">
                   <Sparkles className="w-3.5 h-3.5" />
                   <span>Funzionalità</span>
                 </div>

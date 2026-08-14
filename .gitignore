@@ -24,6 +24,10 @@
 .DS_Store
 *.pem
 
+# temp (batch traduzione demo, script di verifica)
+.tmp-data/
+.tmp-*.mjs
+
 # debug
 npm-debug.log*
 yarn-debug.log*
