@@ -164,11 +164,8 @@ export default function PricingSection({
           </>
         )}
 
-        {checkoutStatus === 'success' && (
-          <div className="mb-8 p-4 bg-primary-50 border border-primary-200 text-primary rounded-xl text-sm text-center font-medium shadow-sm">
-            &#10003; Pagamento completato con successo. Buon lavoro!
-          </div>
-        )}
+        {/* Nota: dopo il pagamento si viene reindirizzati alla landing page
+            (?checkout=success su /), non più qui: niente banner di successo. */}
         {checkoutStatus === 'cancel' && (
           <div className="mb-8 p-4 bg-amber-50 border border-amber-200 text-amber-700 rounded-xl text-sm text-center font-medium shadow-sm">
             Checkout annullato. Puoi riprovare quando vuoi.

@@ -66,7 +66,10 @@ export async function POST(request: Request) {
       mode: 'subscription',
       customer_email: user.email,
       line_items: [lineItem],
-      success_url: `${origin}/pricing?checkout=success`,
+      // Dopo il pagamento si torna alla landing page (con conferma in evidenza),
+      // non più alla pagina dei piani: chi ha appena pagato non ha bisogno di
+      // rivedere il pricing.
+      success_url: `${origin}/?checkout=success`,
       cancel_url: `${origin}/pricing?checkout=cancel`,
       metadata: {
         app: 'captionboost',

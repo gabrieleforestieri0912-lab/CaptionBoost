@@ -3,10 +3,9 @@
   "name": "CaptionBoost - AI Subtitle Generator",
   "version": "1.1.0",
   "description": "CaptionBoost trasforma i tuoi video YouTube con sottotitoli AI intelligenti. Genera traduzioni accurate e personalizzate in tempo reale utilizzando l'intelligenza artificiale più avanzata. Perfetto per creator di contenuti, educatori e chiunque voglia rendere i propri video accessibili a un pubblico globale.",
-  "permissions": ["scripting", "activeTab", "storage", "identity"],
+  "permissions": ["scripting", "activeTab", "storage", "identity", "cookies"],
   "host_permissions": [
     "https://www.youtube.com/*",
-    "http://localhost:11434/*",
     "http://localhost:3000/*",
     "http://localhost:3007/*",
     "https://captionboost.it/*"
@@ -28,7 +27,11 @@
       "run_at": "document_end"
     },
     {
-      "matches": ["http://localhost:3000/*", "http://localhost:3007/*"],
+      "matches": [
+        "http://localhost:3000/*",
+        "http://localhost:3007/*",
+        "https://captionboost.it/*"
+      ],
       "js": ["bridge.js"],
       "run_at": "document_end"
     }

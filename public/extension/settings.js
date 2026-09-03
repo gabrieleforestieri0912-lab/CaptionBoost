@@ -1,8 +1,8 @@
 const DEFAULT_SETTINGS = {
   aiEngine: "cloud",
-  aiProvider: "openai",
+  aiProvider: "gemini",
   apiKey: "",
-  model: "deepseek-r1",
+  model: "gemini-2.0-flash",
   youtubeApiKey: "",
   outputLanguage: "it",
   showCaptions: true,

@@ -1,7 +1,14 @@
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import { getSupabase } from './supabase'
-import type { User, UserWithoutPassword, Subtitle, Feedback, SubtitleLine } from './types'
+import type {
+  User,
+  UserWithoutPassword,
+  Subtitle,
+  Feedback,
+  SubtitleLine,
+  InboundEmail,
+} from './types'
 
 function sanitizeUser(user: User): UserWithoutPassword {
   const { password, verificationTokens, ...rest } = user
@@ -331,4 +338,34 @@ export async function deleteSubtitle(
     .eq('userId', userId)
 
   return !error
+}
+
+export async function saveInboundEmail(data: {
+  from: string
+  to: string
+  subject: string
+  textBody: string
+  htmlBody: string
+  messageId: string
+}): Promise<InboundEmail | null> {
+  const supabase = getSupabase()
+  const { data: row, error } = await supabase
+    .from('inbound_emails')
+    .insert({
+      from: data.from,
+      to: data.to,
+      subject: data.subject,
+      text_body: data.textBody,
+      html_body: data.htmlBody,
+      message_id: data.messageId,
+    })
+    .select()
+    .single()
+
+  if (error) {
+    console.error('saveInboundEmail error:', error.message)
+    return null
+  }
+
+  return row as InboundEmail
 }

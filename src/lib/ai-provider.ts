@@ -24,8 +24,8 @@ export interface AiResponse {
 }
 
 // Modello più adatto per la traduzione contestuale dei sottotitoli, usato quando
-// viene configurata un'API Key per il provider. Per il motore locale (Ollama) il
-// modello predefinito è deepseek-r1.
+// viene configurata un'API Key per il provider. Per il motore predefinito
+// (Gemini) il modello di riferimento è gemini-2.0-flash.
 export const DEFAULT_MODELS: Record<AiProvider, string> = {
   openai: 'gpt-4o-mini',
   gemini: 'gemini-2.0-flash',
@@ -69,19 +69,19 @@ export function getEffectiveApiKey(provider: AiProvider, customKey?: string): st
 /**
  * Executes an AI call.
  *
- * Motore predefinito: Ollama locale con deepseek-r1 (nessuna API key richiesta).
- * In parallelo è strutturato il percorso con API Key: scegliendo un provider cloud
+ * Motore predefinito: Google Gemini con gemini-2.0-flash (richiede GEMINI_API_KEY).
+ * In parallelo è strutturato il percorso con altre API Key: scegliendo un provider cloud
  * il modello più adatto per i sottotitoli viene selezionato automaticamente
  * (vedi DEFAULT_MODELS) oppure può essere passato esplicitamente.
  */
 export async function callProductionAI(options: AiOptions): Promise<AiResponse> {
-  const provider = options.provider || (process.env.DEFAULT_AI_PROVIDER as AiProvider) || 'ollama'
-  // Ollama: modello locale predefinito (deepseek-r1).
-  // Provider cloud con API Key: modello più adatto per i sottotitoli.
+  const provider = options.provider || (process.env.DEFAULT_AI_PROVIDER as AiProvider) || 'gemini'
+  // Ogni provider usa il modello più adatto per i sottotitoli (vedi DEFAULT_MODELS),
+  // con possibilità di override esplicito o di modello di default dal server.
   const model = options.model || (
     provider === 'ollama'
       ? (process.env.DEFAULT_AI_MODEL || DEFAULT_MODELS.ollama)
-      : (DEFAULT_MODELS[provider] || 'gpt-4o-mini')
+      : (DEFAULT_MODELS[provider] || 'gemini-2.0-flash')
   )
   const apiKey = getEffectiveApiKey(provider, options.apiKey)
   const temperature = options.temperature ?? 0.3

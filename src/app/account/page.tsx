@@ -21,6 +21,8 @@ import {
   ChevronUp,
   AlertCircle,
   Languages,
+  Zap,
+  ArrowRight,
 } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 
@@ -56,6 +58,109 @@ interface Subtitle {
   updatedAt: string;
 }
 
+interface PlanInfo {
+  plan: string;
+  subscriptionStatus: string;
+  translationsUsed?: number;
+  translationsLimit?: number | "unlimited";
+  translationsRemaining?: number | null;
+}
+
+const PLAN_NAMES: Record<string, string> = {
+  free: "Free",
+  starter: "Pro",
+  pro: "Pro",
+  team: "Pro",
+};
+
+function TranslationQuotaCard({ plan }: { plan: PlanInfo }) {
+  const isPaid = plan.subscriptionStatus === "active" && plan.plan !== "free";
+  const planName = PLAN_NAMES[plan.plan] || plan.plan || "Free";
+  const used = Number(plan.translationsUsed || 0);
+  const limit = plan.translationsLimit;
+  const isUnlimited = limit === "unlimited";
+  const max = isUnlimited ? 1 : Math.max(1, Number(limit || 50));
+  const ratio = isUnlimited ? 100 : Math.min((used / max) * 100, 100);
+  const exhausted = !isUnlimited && used >= max;
+  const remaining = plan.translationsRemaining ?? Math.max(0, max - used);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className={`mb-8 rounded-2xl border p-6 shadow-sm transition-colors ${
+        exhausted ? "border-amber-200 bg-amber-50/50" : "border-slate-100 bg-white"
+      }`}
+    >
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div
+            className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${
+              exhausted ? "bg-amber-100 text-amber-600" : "bg-primary-50 text-primary"
+            }`}
+          >
+            <Zap className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="font-bold text-slate-900">Traduzioni del mese</h2>
+              <span
+                className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                  isPaid
+                    ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                    : "bg-slate-100 text-slate-600 border border-slate-200"
+                }`}
+              >
+                Piano {planName}
+              </span>
+            </div>
+            <p className="text-sm text-slate-500 mt-0.5">
+              {isUnlimited
+                ? `Hai traduzioni illimitate con il piano ${planName}.`
+                : used >= max
+                ? "Hai esaurito il limite mensile del piano Free."
+                : `Hai usato ${used} di ${max} traduzioni questo mese.`}
+            </p>
+          </div>
+        </div>
+        <Link
+          href="/pricing"
+          className={`inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all shrink-0 ${
+            isPaid
+              ? "border border-slate-200 text-slate-700 hover:bg-slate-50"
+              : "bg-primary text-white shadow-lg shadow-primary/25 hover:shadow-primary/40"
+          }`}
+        >
+          {isPaid ? "Gestisci piano" : "Passa a Premium"}
+          <ArrowRight className="w-4 h-4" />
+        </Link>
+      </div>
+
+      {!isUnlimited && (
+        <div className="mt-4">
+          <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
+            <motion.div
+              className={`h-full rounded-full ${exhausted ? "bg-amber-400" : "bg-primary"}`}
+              initial={{ width: 0 }}
+              animate={{ width: `${ratio}%` }}
+              transition={{ duration: 0.6, ease: "easeOut" }}
+            />
+          </div>
+          <p
+            className={`text-xs mt-2 ${
+              exhausted ? "text-amber-600 font-medium" : "text-slate-400"
+            }`}
+          >
+            {exhausted
+              ? "Il limite si azzera automaticamente il primo giorno del mese. Passa a Premium per traduzioni illimitate."
+              : `Ti restano ${remaining} traduzioni questo mese.`}
+          </p>
+        </div>
+      )}
+    </motion.div>
+  );
+}
+
 export default function AccountPage() {
   const router = useRouter();
   const { status } = useAuth();
@@ -68,6 +173,7 @@ export default function AccountPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [showLangMenu, setShowLangMenu] = useState(false);
   const langMenuRef = useRef<HTMLDivElement>(null);
+  const [plan, setPlan] = useState<PlanInfo | null>(null);
 
 
   useEffect(() => {
@@ -93,15 +199,27 @@ export default function AccountPage() {
     }
   }, []);
 
+  const loadPlan = useCallback(async () => {
+    try {
+      const res = await fetch("/api/account");
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setPlan(data.plan || null);
+    } catch (err) {
+      console.error("Errore caricamento piano:", err);
+    }
+  }, []);
+
   useEffect(() => {
     if (status === "unauthenticated") {
       router.push("/login");
       return;
     }
     if (status === "authenticated") {
+      loadPlan();
       loadSubtitles();
     }
-  }, [status, router, loadSubtitles]);
+  }, [status, router, loadSubtitles, loadPlan]);
 
   const handleDelete = async (id: string) => {
     if (!confirm("Eliminare questo sottotitolo?")) return;
@@ -220,6 +338,8 @@ export default function AccountPage() {
             />
           </div>
         </div>
+
+        {plan && <TranslationQuotaCard plan={plan} />}
 
         {error && (
           <div className="mb-6 flex items-center gap-2 p-4 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-sm">

@@ -36,6 +36,7 @@ interface YTPlayer {
   getPlayerState(): number
   setVolume(v: number): void
   loadVideoById(videoId: string): void
+  cueVideoById(videoId: string): void
   destroy(): void
 }
 
@@ -57,12 +58,13 @@ const originalIn: Variants = {
 export default function DemoPreview() {
   const [activeLang, setActiveLang]     = useState<DemoLang>(DEMO_LANGS[0])
   const [position, setPosition]         = useState(0)
-  const [showOriginal, setShowOriginal] = useState(true)
+  const [isPlaying, setIsPlaying]       = useState(false)
   const [ytReady, setYtReady]           = useState(false)
 
   const playerRef     = useRef<HTMLDivElement>(null)
   const ytPlayerRef   = useRef<YTPlayer | null>(null)
   const activeLangRef = useRef<DemoLang>(DEMO_LANGS[0])
+  const resumePosRef  = useRef<number | null>(null)
 
   // Segmento corrente in base alla posizione reale del video
   const segs = activeLang.segments
@@ -110,8 +112,22 @@ export default function DemoPreview() {
         onReady: (e) => {
           ytPlayerRef.current = e.target
           if (activeLangRef.current.youtubeId !== DEMO_LANGS[0].youtubeId) {
-            e.target.loadVideoById(activeLangRef.current.youtubeId)
+            e.target.cueVideoById(activeLangRef.current.youtubeId)
           }
+        },
+        onStateChange: (e) => {
+          // I sottotitoli si vedono solo mentre il video sta riproducendo:
+          // nascosti se il video è in pausa, in coda o terminato.
+          setIsPlaying(e.data === window.YT!.PlayerState.PLAYING)
+          // Al primo play dopo un cambio lingua, riprendi da dove si era interrotta
+          if (e.data !== window.YT!.PlayerState.PLAYING) return
+          const p = ytPlayerRef.current
+          const resume = resumePosRef.current
+          if (!p || resume == null) return
+          resumePosRef.current = null
+          const segs = activeLangRef.current.segments
+          const maxEnd = segs[segs.length - 1]?.end ?? 0
+          p.seekTo(Math.min(resume, maxEnd), true)
         },
         onError: () => {
           // video non disponibile: resta visibile la miniatura
@@ -145,25 +161,15 @@ export default function DemoPreview() {
     return () => clearInterval(iv)
   }, [ytReady, totalDuration])
 
-  const seekTo = (idx: number) => {
-    const seg = activeLang.segments[idx]
-    if (!seg) return
-    const p = ytPlayerRef.current
-    if (p) {
-      p.seekTo(seg.start, true)
-      p.playVideo()
-    }
-    setPosition(seg.start)
-  }
-
   const switchLang = (lang: DemoLang) => {
     setActiveLang(lang)
     const p = ytPlayerRef.current
-    if (p) p.loadVideoById(lang.youtubeId)
+    if (p) {
+      resumePosRef.current = p.getCurrentTime()
+      p.cueVideoById(lang.youtubeId)
+    }
     setPosition(0)
   }
-
-  const fmtTime = (s: number) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(Math.floor(s % 60)).padStart(2, '0')}`
 
   return (
     <section className="relative py-16 sm:py-24 bg-white overflow-hidden">
@@ -255,7 +261,7 @@ export default function DemoPreview() {
               <div className="absolute bottom-0 left-0 right-0 px-4 sm:px-8 pb-16 sm:pb-20 pointer-events-none">
                 <div className="flex flex-col items-center gap-1.5">
                   <AnimatePresence mode="wait">
-                    {currentSeg && (
+                    {isPlaying && currentSeg && (
                       <motion.div
                         key={`${activeLang.code}-${currentSeg.start}`}
                         variants={subtitleIn}
@@ -265,15 +271,13 @@ export default function DemoPreview() {
                         className="max-w-2xl w-full"
                       >
                         {/* Original line */}
-                        {showOriginal && (
-                          <motion.div variants={originalIn} initial="initial" animate="animate"
-                            className="text-center mb-1.5"
-                          >
-                            <span className="inline-block bg-black/70 text-slate-400 text-xs sm:text-sm px-4 py-1 rounded-lg leading-relaxed font-normal">
-                              {currentSeg.original}
-                            </span>
-                          </motion.div>
-                        )}
+                        <motion.div variants={originalIn} initial="initial" animate="animate"
+                          className="text-center mb-1.5"
+                        >
+                          <span className="inline-block bg-black/70 text-slate-400 text-xs sm:text-sm px-4 py-1 rounded-lg leading-relaxed font-normal">
+                            {currentSeg.original}
+                          </span>
+                        </motion.div>
                         {/* Translated line */}
                         <div className="text-center">
                           <span
@@ -295,54 +299,6 @@ export default function DemoPreview() {
 
             </div>
 
-            {/* Transcript panel */}
-            <div className="bg-white border-t border-slate-100">
-              <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100 bg-slate-50/60">
-                <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
-                  <Sparkles className="w-4 h-4 text-primary" />
-                  <span>Trascrizione AI · {activeLang.nativeName} → Italiano</span>
-                  <span className="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 text-[10px] font-bold">{activeLang.segments.length} segmenti</span>
-                </div>
-                <div className="flex items-center gap-4">
-                  <label className="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={showOriginal}
-                      onChange={e => setShowOriginal(e.target.checked)}
-                      className="w-3 h-3 rounded accent-primary"
-                    />
-                    Originale
-                  </label>
-                  <span className="text-xs text-slate-400">Clicca per saltare</span>
-                </div>
-              </div>
-              <div className="divide-y divide-slate-100 max-h-64 overflow-y-auto">
-                {activeLang.segments.map((seg, i) => {
-                  const isActive = currentSeg?.start === seg.start
-                  return (
-                    <button
-                      key={seg.start}
-                      onClick={() => seekTo(i)}
-                      className={`w-full text-left grid grid-cols-[3.5rem_1fr_1fr] gap-3 px-5 py-2.5 transition-all duration-150 ${
-                        isActive
-                          ? 'bg-primary-50/80 border-l-[3px] border-l-primary'
-                          : 'hover:bg-slate-50/60 border-l-[3px] border-l-transparent'
-                      }`}
-                    >
-                      <div className={`text-xs font-mono pt-0.5 ${isActive ? 'text-primary font-semibold' : 'text-slate-400'}`}>
-                        {fmtTime(seg.start)}
-                      </div>
-                      <div className={`text-xs leading-relaxed ${isActive ? 'text-slate-700' : 'text-slate-500'}`}>
-                        {seg.original}
-                      </div>
-                      <div className={`text-xs font-semibold leading-relaxed ${isActive ? 'text-slate-900' : 'text-slate-700'}`}>
-                        {seg.translated}
-                      </div>
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
           </div>
 
           {/* Bottom note */}

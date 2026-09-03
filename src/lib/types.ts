@@ -9,6 +9,7 @@ export interface User {
   subscriptionPlan: string
   planMaxVideos: number
   translatedVideosCount?: number
+  translationsMonth?: string
   subscriptionStatus: string | null
   subscriptionId: string | null
   verificationTokens: VerificationToken[]
@@ -59,6 +60,17 @@ export interface Feedback {
   type: string
   message: string
   rating: number | null
+  createdAt: string
+}
+
+export interface InboundEmail {
+  id: string
+  from: string
+  to: string
+  subject: string
+  textBody: string
+  htmlBody: string
+  messageId: string
   createdAt: string
 }
 

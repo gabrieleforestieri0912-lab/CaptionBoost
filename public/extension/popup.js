@@ -38,20 +38,27 @@ document.addEventListener("DOMContentLoaded", async () => {
   const captionRadiusInput = document.getElementById("captionRadius");
   const captionPaddingInput = document.getElementById("captionPadding");
   const captionHorizontalMarginInput = document.getElementById("captionHorizontalMargin");
-  const youtubeApiKeyInput = document.getElementById("youtubeApiKey");
   const enableBtn = document.getElementById("enable-btn");
   const disableBtn = document.getElementById("disable-btn");
   const logoutBtn = document.getElementById("logout-btn");
+  const traduciVideoBtn = document.getElementById("traduci-video-btn");
   const statusEl = document.getElementById("status");
   const quotaLabel = document.getElementById("quota-label");
   const quotaFill = document.getElementById("quota-fill");
-  const plansLink = document.getElementById("plans-link");
-  const settingsLink = document.getElementById("settings-link");
-  const qaLink = document.getElementById("qa-link");
-  const supportLink = document.getElementById("support-link");
+  const quotaPlan = document.getElementById("quota-plan");
 
   let pendingEmail = "";
-  const FREE_PLAN_MAX_VIDEOS = 10;
+  let translateIntent = false;
+  const FREE_PLAN_MAX_TRANSLATIONS = 50;
+
+  // Aperta dal bottone "Traduci" del player: mostra la schermata delle modifiche
+  // con la scelta della lingua in evidenza.
+  chrome.storage.local.get(["cb_popup_intent"], (result) => {
+    if (result.cb_popup_intent === "translate") {
+      translateIntent = true;
+      chrome.storage.local.remove("cb_popup_intent");
+    }
+  });
 
   function setLoading(isLoading) {
     loadingScreen.style.display = isLoading ? "block" : "none";
@@ -71,38 +78,65 @@ document.addEventListener("DOMContentLoaded", async () => {
     userEmail.textContent = user?.email || "";
     loadSettings();
     loadQuota();
+
+    if (translateIntent) {
+      // Landing sulla schermata delle modifiche: evidenzia scelta lingua + bottone
+      translateToSelect.scrollIntoView({ behavior: "smooth", block: "center" });
+      setTimeout(() => translateToSelect.focus(), 300);
+      traduciVideoBtn.classList.add("btn-highlight");
+    }
   }
 
-  function updateQuotaUi(usedVideos = 0, maxVideos = FREE_PLAN_MAX_VIDEOS) {
-    const safeUsed = Math.max(0, Number(usedVideos) || 0);
-    const safeMax = Math.max(1, Number(maxVideos) || FREE_PLAN_MAX_VIDEOS);
-    const ratio = Math.min((safeUsed / safeMax) * 100, 100);
+  function updateQuotaUi(usedTranslations = 0, maxTranslations = FREE_PLAN_MAX_TRANSLATIONS, planInfo = null) {
+    const safeUsed = Math.max(0, Number(usedTranslations) || 0);
+    const isUnlimited =
+      maxTranslations === "unlimited" || Number(maxTranslations) >= 999999;
+    const safeMax = isUnlimited
+      ? 1
+      : Math.max(1, Number(maxTranslations) || FREE_PLAN_MAX_TRANSLATIONS);
+    const ratio = isUnlimited ? 100 : Math.min((safeUsed / safeMax) * 100, 100);
 
-    quotaLabel.textContent = `${safeUsed} / ${safeMax} videos`;
+    // Segnala l'account come Pro quando l'abbonamento è attivo (piano a pagamento)
+    const isPaid =
+      planInfo &&
+      planInfo.subscriptionStatus === "active" &&
+      planInfo.plan &&
+      planInfo.plan !== "free";
+    if (quotaPlan) {
+      quotaPlan.textContent = isPaid ? "Piano Pro" : "Piano Free";
+      quotaPlan.style.color = isPaid ? "#16a34a" : "#334155";
+    }
+
+    quotaLabel.textContent = isUnlimited
+      ? `${safeUsed} traduzioni (illimitate)`
+      : `${safeUsed} / ${safeMax} traduzioni`;
     quotaFill.style.width = `${ratio}%`;
     quotaFill.style.background =
-      ratio >= 100
+      !isUnlimited && ratio >= 100
         ? "#ef4444"
         : "#4C94FF";
   }
 
+  // La quota viene letta dal server (/api/account tramite il background): il
+  // contatore locale è stato rimosso perché manipolabile (spec §7). Fallback
+  // sui dati in storage solo quando non c'è un account autenticato.
   function loadQuota() {
-    chrome.storage.local.get(["translatedVideosCount", "planMaxVideos"], (result) => {
+    chrome.runtime.sendMessage({ action: "getAccountInfo" }, (resp) => {
+      if (chrome.runtime.lastError || !resp?.success || !resp.plan) {
+        chrome.storage.local.get(["translatedVideosCount", "planMaxVideos"], (result) => {
+          updateQuotaUi(
+            result.translatedVideosCount || 0,
+            result.planMaxVideos || FREE_PLAN_MAX_TRANSLATIONS
+          );
+        });
+        return;
+      }
+      const p = resp.plan;
       updateQuotaUi(
-        result.translatedVideosCount || 0,
-        result.planMaxVideos || FREE_PLAN_MAX_VIDEOS
+        p.translationsUsed ?? p.translatedVideosCount ?? 0,
+        p.translationsLimit ?? p.maxVideos ?? FREE_PLAN_MAX_TRANSLATIONS,
+        p
       );
-    });
-  }
-
-  function incrementQuotaUsage() {
-    chrome.storage.local.get(["translatedVideosCount", "planMaxVideos"], (result) => {
-      const used = Number(result.translatedVideosCount || 0);
-      const max = Number(result.planMaxVideos || FREE_PLAN_MAX_VIDEOS);
-      const next = Math.min(used + 1, max);
-      chrome.storage.local.set({ translatedVideosCount: next }, () => {
-        updateQuotaUi(next, max);
-      });
     });
   }
 
@@ -158,9 +192,30 @@ document.addEventListener("DOMContentLoaded", async () => {
     contentScreen.style.display = "none";
 
     try {
-      const isAuth = await authManager.isAuthenticated();
+      // 1) Prima la sincronizzazione col sito (stessa logica del content script):
+      // il background autentica con il token in storage o con la sessione del sito
+      // (chrome.cookies + /api/auth/sync). Così il popup apre la schermata delle
+      // modifiche subito dopo il login sulla landing, senza passare dal login.
+      const synced = await new Promise((resolve) => {
+        chrome.runtime.sendMessage({ action: "checkAuth" }, (resp) => {
+          if (chrome.runtime.lastError) return resolve(null);
+          resolve(resp);
+        });
+      });
+
+      if (synced?.authenticated) {
+        const stored = await new Promise((resolve) => {
+          chrome.storage.local.get(["captionboost_user"], (result) => {
+            resolve(result.captionboost_user || null);
+          });
+        });
+        showContentScreen(stored || { email: "" });
+        return;
+      }
+
+      // 2) Flusso classico: login dall'estensione (token in storage)
       const user = await authManager.getAuthenticatedUser();
-      if (isAuth && user) {
+      if (user) {
         showContentScreen(user);
       } else {
         showAuthScreen();
@@ -181,7 +236,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         "originalColor", "originalSize", "originalWeight",
         "translatedColor", "translatedSize", "translatedWeight",
         "captionBackground", "captionRadius", "captionPadding", "captionHorizontalMargin",
-        "youtubeApiKey",
       ],
       (result) => {
         if (result.language) languageSelect.value = result.language;
@@ -211,7 +265,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (result.captionRadius) captionRadiusInput.value = result.captionRadius;
         if (result.captionPadding) captionPaddingInput.value = result.captionPadding;
         if (result.captionHorizontalMargin) captionHorizontalMarginInput.value = result.captionHorizontalMargin;
-        if (result.youtubeApiKey) youtubeApiKeyInput.value = result.youtubeApiKey;
         updateStatus(Boolean(result.enabled));
       }
     );
@@ -395,43 +448,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     chrome.storage.sync.set({ captionHorizontalMargin: e.target.value });
   });
 
-  youtubeApiKeyInput.addEventListener("change", (e) => {
-    chrome.storage.sync.set({ youtubeApiKey: e.target.value.trim() });
-  });
-
-  async function openAppPage(path) {
-    try {
-      await authManager._ensureInit();
-    } catch {}
-    chrome.tabs.create({ url: `${authManager.apiUrl.replace('/api/auth', '')}${path}` });
-  }
-
-  plansLink.addEventListener("click", (e) => {
-    e.preventDefault();
-    openAppPage('/pricing');
-  });
-
-  settingsLink.addEventListener("click", (e) => {
-    e.preventDefault();
-    openAppPage('/settings');
-  });
-
-  const subtitlesLink = document.getElementById("subtitles-link");
-  subtitlesLink.addEventListener("click", (e) => {
-    e.preventDefault();
-    openAppPage('/account');
-  });
-
-  qaLink.addEventListener("click", (e) => {
-    e.preventDefault();
-    openAppPage('/account');
-  });
-
-  supportLink.addEventListener("click", (e) => {
-    e.preventDefault();
-    chrome.tabs.create({ url: `https://captionboost.it/support` });
-  });
-
   enableBtn.addEventListener("click", async () => {
     enableBtn.disabled = true;
     enableBtn.textContent = "Enabling...";
@@ -451,7 +467,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (response?.success) {
           chrome.storage.sync.set({ enabled: true });
           updateStatus(true);
-          incrementQuotaUsage();
+          loadQuota(); // aggiorna la quota dal server (contatore gestito server-side)
           showSuccess("Subtitles enabled.");
         } else {
           showError(response?.error || "Unable to enable subtitles.");
@@ -493,6 +509,37 @@ document.addEventListener("DOMContentLoaded", async () => {
       logoutBtn.textContent = "Logout";
       checkAuthentication();
     }, 700);
+  });
+
+  // Flusso "Traduci": scegli la lingua nella schermata delle modifiche e avvia
+  // la generazione dei sottotitoli sul video YouTube attivo.
+  traduciVideoBtn.addEventListener("click", async () => {
+    const lang = translateToSelect.value || "it";
+
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab?.url || !tab.url.includes("youtube.com")) {
+      showError("Apri un video YouTube per tradurlo.");
+      return;
+    }
+
+    traduciVideoBtn.disabled = true;
+    traduciVideoBtn.textContent = "Avvio traduzione...";
+
+    chrome.tabs.sendMessage(tab.id, { action: "startTranslateVideo", lang }, (response) => {
+      if (chrome.runtime.lastError) {
+        traduciVideoBtn.disabled = false;
+        traduciVideoBtn.textContent = "Traduci questo video";
+        showError(`Errore: ${chrome.runtime.lastError.message}`);
+        return;
+      }
+      if (response?.success) {
+        window.close();
+      } else {
+        traduciVideoBtn.disabled = false;
+        traduciVideoBtn.textContent = "Traduci questo video";
+        showError(response?.error || "Impossibile avviare la traduzione.");
+      }
+    });
   });
 
   checkAuthentication();

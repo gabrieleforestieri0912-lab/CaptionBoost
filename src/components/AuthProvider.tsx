@@ -53,25 +53,44 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
     let active = true
     const supabase = createBrowserSupabase()
 
-    supabase.auth.getSession().then(({ data }) => {
+    // Con `cookies.encode: "tokens-only"` il cookie contiene solo i token, non
+    // l'oggetto user: getUser() fa la chiamata di rete con il token ed è sempre
+    // affidabile, anche al primo caricamento dopo il redirect del login.
+    const loadUser = async () => {
+      const {
+        data: { user: authUser },
+      } = await supabase.auth.getUser()
       if (!active) return
-      if (data.session?.user) {
-        setUser(mapUser(data.session.user))
+      if (authUser) {
+        setUser(mapUser(authUser))
         setStatus('authenticated')
       } else {
+        setUser(null)
         setStatus('unauthenticated')
       }
-    })
+    }
+
+    loadUser()
 
     const { data: subscription } = supabase.auth.onAuthStateChange(
       (_event, session) => {
         if (!active) return
-        if (session?.user) {
+        if (!session) {
+          setUser(null)
+          setStatus('unauthenticated')
+          return
+        }
+        // Con tokens-only la sessione può arrivare con un proxy al posto dello
+        // user reale (es. INITIAL_SESSION da storage senza user in localStorage):
+        // in quel caso lo ricarichiamo via API.
+        const sessionUser = session.user as
+          | (SessionUser & { __isUserNotAvailableProxy?: boolean })
+          | null
+        if (sessionUser && !sessionUser.__isUserNotAvailableProxy) {
           setUser(mapUser(session.user))
           setStatus('authenticated')
         } else {
-          setUser(null)
-          setStatus('unauthenticated')
+          loadUser()
         }
       }
     )

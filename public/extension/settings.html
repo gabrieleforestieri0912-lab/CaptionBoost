@@ -110,17 +110,16 @@
       <div class="row">
         <label for="aiEngine">Modalità AI</label>
         <select id="aiEngine">
-          <option value="cloud">🌐 Server (predefinito: Ollama deepseek-r1 · API Key opzionale)</option>
+          <option value="cloud">🌐 Server (predefinito: Google Gemini · API Key opzionale)</option>
           <option value="custom_key">🔑 API Key Personalizzata (modello più adatto per provider)</option>
-          <option value="ollama">💻 Ollama Locale (deepseek-r1)</option>
         </select>
       </div>
 
       <div class="row" id="providerRow">
         <label for="aiProvider">Provider AI</label>
         <select id="aiProvider">
+          <option value="gemini" selected>Google Gemini (Gemini 2.0 Flash)</option>
           <option value="openai">OpenAI (GPT-4o Mini / GPT-4o)</option>
-          <option value="gemini">Google Gemini (Gemini 2.0 Flash)</option>
           <option value="groq">Groq (Llama 3.3 70B Cloud)</option>
           <option value="anthropic">Anthropic (Claude 3.5 Haiku)</option>
           <option value="deepl">DeepL API</option>
@@ -137,7 +136,7 @@
 
       <div class="row" id="modelRow">
         <label for="model">Modello (opzionale)</label>
-        <input id="model" type="text" placeholder="deepseek-r1">
+        <input id="model" type="text" placeholder="gemini-2.0-flash">
       </div>
 
     </div>

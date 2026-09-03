@@ -1,7 +1,5 @@
-// Background Service Worker - Gestisce le chiamate AI (Ollama deepseek-r1 / API Key cloud), traduzione e preferenze globali
+// Background Service Worker - Gestisce le chiamate AI (Gemini / API Key cloud), traduzione e preferenze globali
 
-// Configurazione di Ollama locale (modello predefinito: deepseek-r1)
-const LLAMA3_API = 'http://localhost:11434/api/generate';
 let CLOUD_API = 'http://localhost:3000/api/ai';
 
 (async () => {
@@ -12,7 +10,7 @@ let CLOUD_API = 'http://localhost:3000/api/ai';
     }
   } catch {}
 })();
-const USE_CLOUD_FALLBACK = true; // Usa il server (Ollama deepseek-r1 / API Key) quando Ollama locale non è disponibile
+const USE_CLOUD_FALLBACK = true; // Usa il server (Gemini / API Key) per le chiamate AI
 
 function getAppBaseUrl() {
   return CLOUD_API.replace('/api/ai', '');
@@ -20,6 +18,61 @@ function getAppBaseUrl() {
 
 // Istanza globale del traduttore
 let translator = null;
+
+// ── Cache traduzioni (spec §4: chiave = videoId + lingua target) ──────────────
+const TRANSLATION_CACHE_KEY = 'translationCache';
+const TRANSLATION_CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 giorni
+const TRANSLATION_CACHE_MAX_ENTRIES = 100;
+
+// Firma del contenuto sorgente: invalida la cache se i captions cambiano
+function captionsSignature(captions) {
+  let s = '';
+  for (const c of captions) s += c.start + '|' + (c.text || '') + ';';
+  let hash = 0;
+  for (let i = 0; i < s.length; i++) {
+    hash = ((hash << 5) - hash + s.charCodeAt(i)) | 0;
+  }
+  return String(hash);
+}
+
+async function getCachedTranslation(videoId, lang, sourceSignature) {
+  if (!videoId || !lang) return null;
+  try {
+    const result = await chrome.storage.local.get([TRANSLATION_CACHE_KEY]);
+    const cache = result[TRANSLATION_CACHE_KEY] || {};
+    const entry = cache[`${videoId}:${lang}`];
+    if (!entry) return null;
+    if (Date.now() - (entry.ts || 0) > TRANSLATION_CACHE_TTL_MS) return null;
+    // La firma sorgente deve combaciare (stessi captions originali)
+    if (sourceSignature && entry.sig && entry.sig !== sourceSignature) return null;
+    return entry.captions || null;
+  } catch (e) {
+    console.warn('⚠️ getCachedTranslation error:', e);
+    return null;
+  }
+}
+
+async function setCachedTranslation(videoId, lang, captions, sourceSignature) {
+  if (!videoId || !lang || !captions) return;
+  try {
+    const result = await chrome.storage.local.get([TRANSLATION_CACHE_KEY]);
+    const cache = result[TRANSLATION_CACHE_KEY] || {};
+    const keys = Object.keys(cache);
+    if (keys.length >= TRANSLATION_CACHE_MAX_ENTRIES) {
+      // Rimuovi la voce più vecchia
+      keys.sort((a, b) => (cache[a].ts || 0) - (cache[b].ts || 0));
+      delete cache[keys[0]];
+    }
+    cache[`${videoId}:${lang}`] = {
+      ts: Date.now(),
+      sig: sourceSignature || null,
+      captions,
+    };
+    await chrome.storage.local.set({ [TRANSLATION_CACHE_KEY]: cache });
+  } catch (e) {
+    console.warn('⚠️ setCachedTranslation error:', e);
+  }
+}
 
 // Lingue supportate
 const SUPPORTED_LANGUAGES = {
@@ -92,9 +145,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 
   if (request.action === 'restructureCaptions') {
-    restructureCaptionsWithOllama(request.captions, request.targetLanguage)
-      .then(result => sendResponse({ success: true, captions: result }))
-      .catch(error => sendResponse({ success: false, error: error.message }));
+    restructureCaptions(request.captions, request.targetLanguage, request.videoId)
+      .then(result => sendResponse({ success: true, captions: result, cached: result._cached }))
+      .catch(error => sendResponse({ success: false, error: error.message, status: error.status }));
     return true;
   }
 
@@ -107,16 +160,51 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'answerQuestion') {
     answerCaptionQuestion(request.captions, request.question, request.targetLanguage)
       .then(answer => sendResponse({ success: true, answer }))
-      .catch(error => sendResponse({ success: false, error: error.message }));
+      .catch(error => sendResponse({ success: false, error: error.message, status: error.status }));
     return true;
   }
 
-  if (request.action === 'translateToAllLanguages') {
-    translateToAllLanguages(request.captions, request.sourceLanguage)
-      .then(result => sendResponse({ success: true, translations: result }))
-      .catch(error => sendResponse({ success: false, error: error.message }));
+  if (request.action === 'getAccountInfo') {
+    getAccountInfo()
+      .then(result => sendResponse(result))
+      .catch(e => sendResponse({ success: false, error: e.message }));
     return true;
   }
+
+  if (request.action === 'openPricingTab') {
+    chrome.tabs.create({ url: `${getAppBaseUrl()}/pricing` });
+    sendResponse({ success: true });
+    return true;
+  }
+
+  if (request.action === 'siteAuthSync') {
+    handleSiteAuthSync(request)
+      .then((result) => sendResponse(result))
+      .catch((e) => sendResponse({ success: false, error: e.message }));
+    return true;
+  }
+
+  if (request.action === 'checkAuth') {
+    checkAuth()
+      .then((result) => sendResponse(result))
+      .catch((e) => sendResponse({ success: false, authenticated: false, error: e.message }));
+    return true;
+  }
+
+  if (request.action === 'openPopupTranslate') {
+    openPopupWithIntent('translate')
+      .then((result) => sendResponse(result))
+      .catch((e) => sendResponse({ success: false, error: e.message }));
+    return true;
+  }
+
+  if (request.action === 'openPopupLogin') {
+    openPopupWithIntent('login')
+      .then((result) => sendResponse(result))
+      .catch((e) => sendResponse({ success: false, error: e.message }));
+    return true;
+  }
+
 
   if (request.action === 'getQaHistory') {
     chrome.storage.local.get(['qaHistory'], (result) => {
@@ -127,6 +215,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
   if (request.action === 'fetchCaptionsFromTab') {
     handleFetchCaptionsFromTab(request)
+      .then(result => sendResponse(result))
+      .catch(e => sendResponse({ success: false, error: e.message }));
+    return true;
+  }
+
+  if (request.action === 'fetchTranscriptFallback') {
+    fetchTranscriptFallback(request.videoId)
       .then(result => sendResponse(result))
       .catch(e => sendResponse({ success: false, error: e.message }));
     return true;
@@ -150,19 +245,19 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 });
 
 /**
- * Genera sottotitoli usando il motore AI (predefinito: Ollama deepseek-r1)
+ * Genera sottotitoli usando il motore AI (predefinito: Google Gemini)
  */
 async function generateSubtitlesWithLlama(transcript) {
   try {
     // Ottieni le preferenze salvate
     const settings = await chrome.storage.sync.get(['language', 'model']);
     const targetLanguage = settings.language || 'it';
-    const model = settings.model || 'deepseek-r1';
+    const model = settings.model || 'gemini-2.0-flash';
 
     // Prepara il prompt
     const prompt = buildSubtitlePrompt(transcript, targetLanguage);
 
-    // Chiama Llama3
+    // Chiama il motore AI
     const response = await callLlama(prompt, model);
 
     // Estrai e elabora i sottotitoli
@@ -183,7 +278,7 @@ async function generateSubtitlesWithLlama(transcript) {
 async function translateSubtitles(subtitles, targetLanguage, context = {}) {
   try {
     const settings = await chrome.storage.sync.get(['model']);
-    const model = settings.model || 'deepseek-r1';
+    const model = settings.model || 'gemini-2.0-flash';
 
     const windowSize = 10;
     const contextBefore = 3;
@@ -260,7 +355,7 @@ async function translateSubtitles(subtitles, targetLanguage, context = {}) {
 /**
  * Costruisce un prompt contestuale per una finestra di sottotitoli
  */
-function buildWindowTranslationPrompt(windowTexts, beforeTexts, targetLanguage, context = {}, model = 'deepseek-r1') {
+function buildWindowTranslationPrompt(windowTexts, beforeTexts, targetLanguage, context = {}, model = 'gemini-2.0-flash') {
   const languageName = SUPPORTED_LANGUAGES[targetLanguage]?.name || targetLanguage;
 
   let prompt = `Sei un traduttore professionista di sottotitoli. Traduci i sottotitoli dal contesto in ${languageName}, mai parola per parola.\n`;
@@ -308,7 +403,7 @@ Esempio:
 
 Rispondi SOLO con JSON valido, senza testo aggiuntivo:`;
 
-    const response = await callLlama(prompt, 'deepseek-r1');
+    const response = await callLlama(prompt, 'gemini-2.0-flash');
     
     try {
       return JSON.parse(response);
@@ -322,7 +417,7 @@ Rispondi SOLO con JSON valido, senza testo aggiuntivo:`;
 }
 
 /**
- * Costruisce il prompt per Llama3
+ * Costruisce il prompt per il motore AI
  */
 function buildSubtitlePrompt(transcript, language) {
   const languageMap = {
@@ -362,60 +457,31 @@ async function getAISettings() {
   const settings = await chrome.storage.sync.get(['aiEngine', 'aiProvider', 'apiKey', 'model']);
   return {
     aiEngine: settings.aiEngine || 'cloud',
-    aiProvider: settings.aiProvider || 'openai',
+    aiProvider: settings.aiProvider || 'gemini',
     apiKey: settings.apiKey || '',
-    model: settings.model || 'deepseek-r1',
+    model: settings.model || 'gemini-2.0-flash',
   };
 }
 
 /**
  * Chiama il motore AI per generare e tradurre sottotitoli.
- * - Predefinito (nessuna API Key): il server usa Ollama locale con deepseek-r1.
+ * - Predefinito: il server usa Google Gemini con gemini-2.0-flash.
  * - Con API Key: il server sceglie automaticamente il modello più adatto per il provider.
- * - Modalità "ollama": chiamata diretta a Ollama locale.
  */
 async function callLlama(prompt, overrideModel = null) {
   const { aiEngine, aiProvider, apiKey, model } = await getAISettings();
-  const LOCAL_DEFAULT_MODEL = 'deepseek-r1';
-  const effectiveModel = overrideModel || model || LOCAL_DEFAULT_MODEL;
-
-  if (aiEngine === 'ollama') {
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000);
-      const response = await fetch(LLAMA3_API, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: effectiveModel,
-          prompt: prompt,
-          stream: false,
-          think: false,
-          options: { temperature: 0.7 },
-        }),
-        signal: controller.signal
-      });
-      clearTimeout(timeoutId);
-
-      if (response.ok) {
-        const data = await response.json();
-        return data.response || '';
-      }
-    } catch (localError) {
-      console.warn('❌ Errore Ollama locale, tentato fallback cloud:', localError);
-    }
-  }
 
   // Cloud / API Key: il modello viene inviato solo se configurato esplicitamente
-  // dall'utente (diverso dai modelli locali di Ollama); altrimenti il server
-  // sceglie automaticamente il modello più adatto per il provider.
-  const localModels = ['deepseek-r1', 'llama3', 'llama3-70b'];
-  const customModel = overrideModel && !localModels.includes(overrideModel) ? overrideModel
-    : (model && !localModels.includes(model) ? model : '');
+  // dall'utente; altrimenti il server sceglie automaticamente il modello più adatto.
+  const customModel = overrideModel || model || '';
 
-  // Modalità "cloud": nessun provider/modello forzato, usa il default del server (Ollama deepseek-r1).
+  // Modalità "cloud": nessun provider/modello forzato, usa il default del server (Gemini gemini-2.0-flash).
   const hasCustomKey = Boolean(apiKey) || aiEngine === 'custom_key';
   const providerForRequest = hasCustomKey ? aiProvider : undefined;
+
+  // Token di autenticazione: il server applica il limite free (50 traduzioni/mese)
+  // sull'utente autenticato (spec §7).
+  const token = await getAuthToken();
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 30000);
@@ -423,6 +489,7 @@ async function callLlama(prompt, overrideModel = null) {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(apiKey ? { 'x-ai-api-key': apiKey } : {}),
       ...(providerForRequest ? { 'x-ai-provider': providerForRequest } : {}),
       ...(customModel ? { 'x-ai-model': customModel } : {}),
@@ -441,7 +508,9 @@ async function callLlama(prompt, overrideModel = null) {
 
   if (!response.ok) {
     const errData = await response.json().catch(() => ({}));
-    throw new Error(errData.error || `HTTP Error ${response.status}`);
+    const err = new Error(errData.error || `HTTP Error ${response.status}`);
+    err.status = response.status;
+    throw err;
   }
 
   const data = await response.json();
@@ -509,9 +578,9 @@ async function saveSubtitlesLocally(data) {
 }
 
 /**
- * Ottiene il token di autenticazione dallo storage
+ * Legge il token app salvato in storage (senza fallback).
  */
-async function getAuthToken() {
+function getStoredAuthToken() {
   return new Promise((resolve) => {
     chrome.storage.local.get(['captionboost_auth_token'], (result) => {
       resolve(result.captionboost_auth_token || null);
@@ -520,17 +589,112 @@ async function getAuthToken() {
 }
 
 /**
- * Genera sottotitoli migliorati e tradotti via AI
- * Usa Cloud Production API (GPT-4o Mini) o Ollama locale in base alle impostazioni
+ * Ottiene il token di autenticazione dell'app.
+ * 1) Token già in storage (login dall'estensione o sync precedente).
+ * 2) Fallback: sincronizza la sessione del sito (via chrome.cookies o bridge)
+ *    scambiando l'access token Supabase con un JWT dell'app (/api/auth/sync).
  */
-async function restructureCaptionsWithOllama(captions, targetLanguage) {
+async function getAuthToken() {
+  const stored = await getStoredAuthToken();
+  if (stored) return stored;
+  return ensureSyncedAuth();
+}
+
+function base64UrlDecode(value) {
+  let b64 = value.replace(/-/g, '+').replace(/_/g, '/');
+  while (b64.length % 4) b64 += '=';
+  const bytes = atob(b64);
+  const chars = new Array(bytes.length);
+  for (let i = 0; i < bytes.length; i++) chars[i] = bytes.charCodeAt(i);
+  return new TextDecoder().decode(Uint8Array.from(chars));
+}
+
+/**
+ * Legge l'access token della sessione del sito dai cookie (sb-*-auth-token).
+ * Funziona anche senza bridge.js: chrome.cookies legge il cookie jar del sito
+ * direttamente, senza dipendere da SameSite o da una scheda del sito aperta.
+ */
+async function getSiteSessionAccessToken() {
+  const siteUrl = getAppBaseUrl();
+  let cookies = [];
+  try {
+    cookies = await chrome.cookies.getAll({ url: siteUrl });
+  } catch (e) {
+    console.warn('⚠️ chrome.cookies non disponibile:', e);
+    return null;
+  }
+  try {
+    const byKey = {};
+    for (const c of cookies) {
+      const m = c.name.match(/^(sb-.+-auth-token)(?:\.(\d+))?$/);
+      if (!m) continue;
+      const key = m[1];
+      const idx = parseInt(m[2] || '0', 10);
+      if (!byKey[key]) byKey[key] = [];
+      byKey[key][idx] = c.value;
+    }
+    for (const key of Object.keys(byKey)) {
+      const value = byKey[key].join('');
+      if (!value.startsWith('base64-')) continue;
+      const session = JSON.parse(base64UrlDecode(value.substring('base64-'.length)));
+      if (session && typeof session.access_token === 'string' && session.access_token) {
+        return session.access_token;
+      }
+    }
+  } catch (e) {
+    // cookie non decodificabile (es. scrittura a metà): ignora
+  }
+  return null;
+}
+
+/**
+ * Scambia l'access token Supabase del sito con un JWT dell'app e lo salva.
+ */
+async function exchangeSiteToken(accessToken) {
+  if (!accessToken) return null;
+  const resp = await fetch(`${getAppBaseUrl()}/api/auth/sync`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token: accessToken }),
+  });
+  const data = await resp.json().catch(() => ({}));
+  if (!resp.ok || !data.token) {
+    console.warn('⚠️ Auth sync fallito:', data?.error || resp.status);
+    return null;
+  }
+  await chrome.storage.local.set({
+    captionboost_auth_token: data.token,
+    captionboost_user: data.user,
+  });
+  notifyYouTubeTabs({ action: 'authStateChanged', authenticated: true });
+  return data.token;
+}
+
+/**
+ * Sincronizza la sessione del sito (se presente) con l'estensione.
+ */
+async function ensureSyncedAuth() {
+  const siteToken = await getSiteSessionAccessToken();
+  if (!siteToken) return null;
+  return exchangeSiteToken(siteToken);
+}
+
+/**
+ * Genera sottotitoli migliorati e tradotti via AI
+ * Usa Cloud Production API (Gemini) in base alle impostazioni
+ */
+/**
+ * Costruisce il prompt per ripulire e tradurre i sottotitoli.
+ * Condiviso tra il percorso non-streaming e quello streaming.
+ */
+function buildRestructurePrompt(captions, targetLanguage) {
   const langName = SUPPORTED_LANGUAGES[targetLanguage]?.name || targetLanguage;
 
   const transcriptText = captions.map((c, i) =>
     `[${i + 1}] ${formatTime(c.start)} --> ${formatTime(c.end)}: ${c.text}`
   ).join("\n");
 
-  const prompt = `Sei un editor e traduttore professionista di sottotitoli. Correggi errori di trascrizione, aggiungi punteggiatura, migliora la naturalezza del testo e traduci TUTTO in ${langName}.
+  return `Sei un editor e traduttore professionista di sottotitoli. Correggi errori di trascrizione, aggiungi punteggiatura, migliora la naturalezza del testo e traduci TUTTO in ${langName}.
 
 Traduci BASANDOTI SUL CONTESTO dell'intero video, MAI parola per parola. Regole:
 - Rendi la traduzione naturale e idiomatica, coerente con la conversazione nel suo insieme.
@@ -548,18 +712,39 @@ Sottotitoli originali:
 ${transcriptText}
 
 Sottotitoli corretti e tradotti in ${langName}:`;
+}
+async function restructureCaptions(captions, targetLanguage, videoId) {
+  const sourceSignature = captionsSignature(captions);
+
+  // Cache hit: riusa la traduzione già fatta per questo video + lingua
+  const cached = await getCachedTranslation(videoId, targetLanguage, sourceSignature);
+  if (cached && cached.length === captions.length) {
+    const copy = cached.slice();
+    copy._cached = true;
+    return copy;
+  }
+
+  const prompt = buildRestructurePrompt(captions, targetLanguage);
 
   try {
     const output = await callLlama(prompt);
 
     if (output) {
       const result = parseRestructuredOutput(output, captions);
-      if (result.length > 0) return result;
+      if (result.length > 0) {
+        await setCachedTranslation(videoId, targetLanguage, result, sourceSignature);
+        return result;
+      }
     }
 
     return captions.map(c => ({ ...c, text: c.text }));
   } catch (e) {
     console.error("❌ Batch restructuring failed:", e);
+    // Errore di quota (429): propaga il messaggio perché la UI mostri il limite
+    // invece di ripiegare silenziosamente sui sottotitoli originali.
+    if (e && (e.status === 429 || /limite/i.test(e.message || ''))) {
+      throw e;
+    }
     return captions.map(c => ({ ...c, text: c.text }));
   }
 }
@@ -592,81 +777,113 @@ function parseRestructuredOutput(output, originalCaptions) {
 
     return result;
   } catch (e) {
-    console.error("Failed to parse Ollama output:", e);
+    console.error("Failed to parse AI output:", e);
     return [];
   }
 }
 
 /**
- * AI Caption Q&A - Risponde a domande sul contenuto del video
+ * AI Caption Q&A - Risponde a domande sul contenuto del video.
+ * Premium only: il piano viene verificato server-side su /api/qa (spec §7),
+ * quindi qui non ci si fida mai di un flag locale.
  */
 async function answerCaptionQuestion(captions, question, targetLanguage = 'it') {
-  const transcriptText = captions.map(c => c.text).join(' ');
-  const langName = SUPPORTED_LANGUAGES[targetLanguage]?.name || targetLanguage;
+  const token = await getAuthToken();
+  if (!token) {
+    const err = new Error("Devi effettuare l'accesso per usare il Q&A.");
+    err.status = 401;
+    throw err;
+  }
 
-  const prompt = `Sei un assistente esperto che risponde a domande sul contenuto di un video basandoti sui suoi sottotitoli.
+  let resp;
+  try {
+    resp = await fetch(`${getAppBaseUrl()}/api/qa`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ captions, question, targetLanguage }),
+    });
+  } catch (e) {
+    const err = new Error('Impossibile contattare il server.');
+    err.status = 0;
+    throw err;
+  }
 
-SOTTOTITOLI DEL VIDEO:
-"${transcriptText}"
-
-DOMANDA: "${question}"
-
-Rispondi in ${langName} in modo chiaro e conciso, basandoti SOLO sulle informazioni presenti nei sottotitoli. Se la risposta non è nei sottotitoli, dì che non hai abbastanza informazioni per rispondere.
-
-RISPOSTA:`;
-
-  const settings = await chrome.storage.sync.get(['model']);
-  const model = settings.model || 'deepseek-r1';
-  return callLlama(prompt, model);
+  const data = await resp.json().catch(() => ({}));
+  if (!resp.ok || !data?.success) {
+    const err = new Error(data?.error || `HTTP ${resp.status}`);
+    err.status = resp.status;
+    throw err;
+  }
+  return data.answer;
 }
 
 /**
- * Traduce i sottotitoli in tutte le 20 lingue supportate
+ * Recupera le informazioni sull'account (piano, stato abbonamento) dal server.
  */
-async function translateToAllLanguages(captions, sourceLanguage = 'en') {
-  const transcriptText = captions.map(c => c.text).join('\n');
-  const actualSource = SUPPORTED_LANGUAGES[sourceLanguage] ? sourceLanguage : 'en';
-  const targetCodes = Object.keys(SUPPORTED_LANGUAGES).filter(l => l !== actualSource);
-  const targetNames = targetCodes.map(c => SUPPORTED_LANGUAGES[c].name).join(', ');
+async function getAccountInfo() {
+  const token = await getAuthToken();
+  if (!token) return { success: false, error: 'Non autenticato' };
+  const resp = await fetch(`${getAppBaseUrl()}/api/account`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const data = await resp.json().catch(() => ({}));
+  if (!resp.ok) return { success: false, error: data?.error || `HTTP ${resp.status}` };
+  return { success: true, plan: data.plan };
+}
 
-  const prompt = `Sei un traduttore professionista. Traduci il seguente testo in TUTTE queste lingue: ${targetNames}.
-
-Testo originale (${SUPPORTED_LANGUAGES[actualSource]?.name || actualSource}):
-"${transcriptText}"
-
-Per ogni lingua, fornisci la traduzione in questo formato esatto:
-[LINGUA]: [TRADUZIONE]
-
-Lingue: ${targetNames}
-
-Traduzioni:`;
-
-  try {
-    const settings = await chrome.storage.sync.get(['model']);
-    const model = settings.model || 'deepseek-r1';
-    const response = await callLlama(prompt, model);
-
-    const translations = {};
-    const lines = response.split('\n').filter(l => l.trim());
-
-    for (const line of lines) {
-      for (const [code, lang] of Object.entries(SUPPORTED_LANGUAGES)) {
-        if (code === actualSource) continue;
-        const prefix = `${lang.name}:`;
-        const escapedPrefix = prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const match = line.match(new RegExp(`^${escapedPrefix}\\s*(.+)$`, 'i'));
-        if (match) {
-          translations[code] = match[1].trim();
-          break;
-        }
-      }
+/**
+ * Sincronizza l'autenticazione dal sito: il bridge (content script sul sito)
+ * invia l'access token Supabase della sessione appena cambiata; al logout il
+ * token dell'estensione viene rimosso.
+ */
+async function handleSiteAuthSync({ loggedIn, accessToken }) {
+  if (!loggedIn || !accessToken) {
+    const had = await chrome.storage.local.get(['captionboost_auth_token']);
+    await chrome.storage.local.remove(['captionboost_auth_token', 'captionboost_user']);
+    if (had.captionboost_auth_token) {
+      notifyYouTubeTabs({ action: 'authStateChanged', authenticated: false });
     }
-
-    return translations;
-  } catch (e) {
-    console.error('Batch translate failed:', e);
-    return {};
+    return { success: true, authenticated: false };
   }
+
+  const token = await exchangeSiteToken(accessToken);
+  return token
+    ? { success: true, authenticated: true }
+    : { success: false, error: 'Auth sync fallito' };
+}
+
+/** Verifica se l'estensione può autenticarsi (token app in storage). */
+async function checkAuth() {
+  const token = await getAuthToken();
+  if (!token) return { authenticated: false };
+  const info = await getAccountInfo();
+  if (info?.success) return { authenticated: true, plan: info.plan };
+  return { authenticated: false };
+}
+
+/** Apre il popup dell'estensione con un intent (es. 'translate', 'login'). */
+async function openPopupWithIntent(intent) {
+  await chrome.storage.local.set({ cb_popup_intent: intent });
+  try {
+    await chrome.action.openPopup();
+    return { success: true, mode: 'popup' };
+  } catch (e) {
+    // openPopup non disponibile (es. Chrome < 127): apre il popup in una scheda
+    await chrome.tabs.create({ url: chrome.runtime.getURL('popup.html') });
+    return { success: true, mode: 'tab' };
+  }
+}
+
+/** Notifica tutti i tab YouTube aperti (per aggiornare il bottone). */
+function notifyYouTubeTabs(msg) {
+  chrome.tabs.query({ url: '*://www.youtube.com/*' }, (tabs) => {
+    for (const tab of tabs) {
+      chrome.tabs.sendMessage(tab.id, msg).catch(() => {});
+    }
+  });
 }
 
 // --- Bridge: fetch captions from a YouTube tab ---
@@ -701,7 +918,139 @@ async function handleFetchCaptionsFromTab({ requestId, videoId, lang, sourceLang
     return { success: false, error: e.message };
   }
 }
-// --- End Bridge ---
+// Streaming sottotitoli tradotti progressivamente (spec §4):
+// il content script apre un port, il background streama da /api/ai/stream
+// e invia i segmenti man mano che il modello li produce.
+chrome.runtime.onConnect.addListener((port) => {
+  port.onMessage.addListener((msg) => {
+    if (msg?.action === 'streamRestructure') {
+      streamRestructureCaptions(port, msg.captions, msg.targetLanguage, msg.videoId);
+    }
+  });
+});
+
+// Estrae le righe complete "[N] ... --> ...: testo" man mano che arrivano
+function emitProgressLines(rawOutput, captions, lastProcessed) {
+  const lines = rawOutput.split('\n');
+  const complete = rawOutput.endsWith('\n') ? lines.length : lines.length - 1;
+  const updates = [];
+  for (let i = lastProcessed; i < complete; i++) {
+    const line = lines[i].trim();
+    const match = line.match(/^\[(\d+)\]\s+(\d{2}:\d{2}:\d{2}\.\d{3})\s+-->\s+(\d{2}:\d{2}:\d{2}\.\d{3}):\s*(.+)/);
+    if (match) {
+      const idx = parseInt(match[1], 10) - 1;
+      const text = match[4].trim();
+      if (text && idx >= 0 && idx < captions.length) {
+        updates.push({ idx, text });
+      }
+    }
+  }
+  return { complete, updates };
+}
+
+async function streamRestructureCaptions(port, captions, targetLanguage, videoId) {
+  const sourceSignature = captionsSignature(captions);
+
+  // Cache hit: invia subito il risultato completo
+  const cached = await getCachedTranslation(videoId, targetLanguage, sourceSignature);
+  if (cached && cached.length === captions.length) {
+    port.postMessage({ type: "done", captions: cached.slice() });
+    return;
+  }
+
+  try {
+    const token = await getAuthToken();
+    const resp = await fetch(`${getAppBaseUrl()}/api/ai/stream`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ prompt: buildRestructurePrompt(captions, targetLanguage) }),
+    });
+    if (!resp.ok || !resp.body) {
+      let message = `HTTP ${resp.status}`;
+      try {
+        const text = await resp.text();
+        const m = text.match(/data: (\{.*\})/);
+        if (m) {
+          const data = JSON.parse(m[1]);
+          if (data?.error) message = data.error;
+        }
+      } catch (e) { /* corpo non parseabile */ }
+      const err = new Error(message);
+      err.status = resp.status;
+      throw err;
+    }
+
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let rawOutput = '';
+    let lastProcessed = 0;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      let sep;
+      while ((sep = buffer.indexOf('\n\n')) !== -1) {
+        const event = buffer.slice(0, sep).trim();
+        buffer = buffer.slice(sep + 2);
+        if (!event.startsWith('data:')) continue;
+        const payload = event.slice(5).trim();
+        if (!payload || payload === '[DONE]') continue;
+        try {
+          const data = JSON.parse(payload);
+          if (data.error) throw new Error(data.error);
+          if (typeof data.token === 'string') {
+            rawOutput += data.token;
+            const { complete, updates } = emitProgressLines(rawOutput, captions, lastProcessed);
+            lastProcessed = complete;
+            for (const u of updates) {
+              port.postMessage({ type: "progress", idx: u.idx, text: u.text });
+            }
+          }
+        } catch (e) {
+          if (e instanceof SyntaxError) continue;
+          throw e;
+        }
+      }
+    }
+
+    const result = parseRestructuredOutput(rawOutput, captions);
+    if (result.length > 0) {
+      await setCachedTranslation(videoId, targetLanguage, result, sourceSignature);
+      port.postMessage({ type: "done", captions: result });
+    } else {
+      port.postMessage({ type: "fallback", captions: captions.map(c => ({ ...c, text: c.text })) });
+    }
+  } catch (e) {
+    console.error('❌ Streaming restructuring failed:', e);
+    try { port.postMessage({ type: 'error', error: e.message, status: e.status }); } catch {}
+  }
+}
+// --- Fallback trascrizione server-side (spec §3 step 2) ---
+async function fetchTranscriptFallback(videoId) {
+  try {
+    const resp = await fetch(`${getAppBaseUrl()}/api/transcript?videoId=${encodeURIComponent(videoId)}`);
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      return { success: false, error: err.error || `HTTP ${resp.status}` };
+    }
+    const data = await resp.json();
+    if (data?.success && data.captions?.length > 0) {
+      return { success: true, captions: data.captions };
+    }
+    return { success: false, error: data.error || 'Nessuna trascrizione dal server' };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+}
+// --- End Fallback ---
+
+// --- Bridge: fetch captions from a YouTube tab ---
 
 // Inizializza le preferenze di default
 chrome.runtime.onInstalled.addListener(() => {
@@ -709,7 +1058,7 @@ chrome.runtime.onInstalled.addListener(() => {
     if (!result.language) {
       chrome.storage.sync.set({
         language: 'it',
-        model: 'deepseek-r1',
+        model: 'gemini-2.0-flash',
         fontSize: 14,
         opacity: 100,
         enabled: false

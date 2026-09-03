@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs'
 import { updateUser, updateUserPassword } from '@/lib/db'
 import { getAuthenticatedUser } from '@/lib/get-user'
 import { createServerSupabase } from '@/lib/supabase-server'
+import { checkTranslationLimit } from '@/lib/usage-limit'
 
 export async function GET(request: Request) {
   const { user } = await getAuthenticatedUser(request)
@@ -24,11 +25,30 @@ export async function GET(request: Request) {
     // nessuna sessione Supabase: resta il valore legacy
   }
 
-  const planInfo = {
+  const planInfo: {
+    plan: string
+    maxVideos: number
+    translatedVideosCount: number
+    subscriptionStatus: string
+    translationsUsed?: number
+    translationsLimit?: number | 'unlimited'
+    translationsRemaining?: number | null
+  } = {
     plan: user.subscriptionPlan || 'free',
     maxVideos: user.planMaxVideos || 10,
     translatedVideosCount: user.translatedVideosCount || 0,
     subscriptionStatus: user.subscriptionStatus || 'none',
+  }
+
+  // Quota traduzioni mensile calcolata lato server (il popup non deve più
+  // fare affidamento su contatori locali manipolabili).
+  try {
+    const quota = await checkTranslationLimit(user)
+    planInfo.translationsUsed = quota.used
+    planInfo.translationsLimit = quota.limit
+    planInfo.translationsRemaining = quota.remaining
+  } catch (error) {
+    console.error('Translation quota check error:', error)
   }
 
   return NextResponse.json({

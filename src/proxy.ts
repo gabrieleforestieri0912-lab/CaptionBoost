@@ -3,7 +3,10 @@ import type { NextRequest } from 'next/server'
 
 const rateLimit = new Map<string, { count: number; resetAt: number }>()
 const RATE_LIMIT_WINDOW = 60 * 1000
-const RATE_LIMIT_MAX = 30
+// Generoso: l'estensione fa chiamate in raffica (verify/refresh/account) e su
+// localhost tutte le richieste condividono lo stesso IP. Resta una protezione
+// base contro i flood, senza bloccare l'uso legittimo.
+const RATE_LIMIT_MAX = 120
 
 function addCorsHeaders(response: NextResponse, request: NextRequest) {
   const origin = request.headers.get('origin') || ''

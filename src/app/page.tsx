@@ -3,9 +3,12 @@
 import { Suspense } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faChrome } from "@fortawesome/free-brands-svg-icons";
 import {
   Sparkles,
   Zap,
@@ -100,11 +103,13 @@ const features = [
 ];
 
 export default function Home() {
+  const router = useRouter();
   const { user: session, signOut } = useAuth();
   const { language, t } = useLanguage();
   const [isScrolled, setIsScrolled] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [showCheckoutSuccess, setShowCheckoutSuccess] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const handleScroll = () => {
@@ -123,6 +128,19 @@ export default function Home() {
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Conferma del pagamento Stripe: si torna qui dalla checkout (success_url=/)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("checkout") === "success") {
+      setShowCheckoutSuccess(true);
+      params.delete("checkout");
+      const qs = params.toString();
+      history.replaceState(null, "", qs ? `?${qs}` : window.location.pathname);
+      const t = setTimeout(() => setShowCheckoutSuccess(false), 7000);
+      return () => clearTimeout(t);
+    }
   }, []);
 
   return (
@@ -202,7 +220,7 @@ export default function Home() {
                           </Link>
                           <div className="mt-1 pt-1 border-t border-slate-50">
                             <button
-                              onClick={() => { setShowUserMenu(false); signOut(); }}
+                              onClick={async () => { setShowUserMenu(false); await signOut(); router.push("/login"); }}
                               className="w-full text-left px-4 py-2 text-sm font-bold text-rose-600 hover:text-rose-700 hover:bg-rose-50"
                             >
                               {t("logout")}
@@ -262,7 +280,7 @@ export default function Home() {
                     <Link href="/account" onClick={() => setMobileMenuOpen(false)} className="block px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 rounded-xl">
                       I miei sottotitoli
                     </Link>
-                    <button onClick={() => { setMobileMenuOpen(false); signOut(); }} className="w-full text-left px-4 py-3 text-sm font-bold text-rose-600 hover:bg-rose-50 rounded-xl">
+                    <button onClick={async () => { setMobileMenuOpen(false); await signOut(); router.push("/login"); }} className="w-full text-left px-4 py-3 text-sm font-bold text-rose-600 hover:bg-rose-50 rounded-xl">
                       {t("logout")}
                     </button>
                   </>
@@ -282,6 +300,11 @@ export default function Home() {
         </header>
 
         <main>
+          {showCheckoutSuccess && (
+            <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[60] px-5 py-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm font-semibold shadow-lg shadow-emerald-900/10">
+              ✓ Abbonamento attivato con successo. Benvenuto in Pro!
+            </div>
+          )}
           <section className="relative min-h-[90vh] flex items-center overflow-hidden bg-white">
 
             <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-28 pb-20">
@@ -345,14 +368,7 @@ export default function Home() {
                       rel="noopener noreferrer"
                       className="inline-flex items-center justify-center gap-2.5 px-8 py-4 rounded-xl bg-white text-slate-700 border-2 border-slate-300 hover:border-slate-400 hover:bg-slate-50 font-semibold shadow-sm text-sm sm:text-base transition-all"
                     >
-                      <svg viewBox="0 0 48 48" className="w-5 h-5 flex-shrink-0">
-                        <circle cx="24" cy="24" r="22" fill="#fff" />
-                        <path d="M24 2C13.3 2 4.2 9.9 2.2 20h15.3a12 12 0 0 1 19-9.9L41.5 4.6A22 22 0 0 0 24 2z" fill="#4285F4" />
-                        <path d="M2.2 28A22 22 0 0 0 24 46c5.6 0 10.7-2.1 14.6-5.5L29.2 32.9a12 12 0 0 1-13.6-4.9H2.2z" fill="#EA4335" />
-                        <path d="M46 24c0-3.8-1-7.4-2.7-10.5L30.5 20a12 12 0 0 1-6.5 16l5.3 9.3A22 22 0 0 0 46 24z" fill="#FBBC05" />
-                        <circle cx="24" cy="24" r="8" fill="#34A853" />
-                        <circle cx="24" cy="24" r="7" fill="#fff" />
-                      </svg>
+                      <FontAwesomeIcon icon={faChrome} className="w-5 h-5 flex-shrink-0" />
                       <span>Aggiungi a Chrome</span>
                     </a>
                   </motion.div>

@@ -69,7 +69,11 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="it" className={`${jetbrainsMono.variable} h-full antialiased`}>
+    <html
+      lang="it"
+      data-scroll-behavior="smooth"
+      className={`${jetbrainsMono.variable} h-full antialiased`}
+    >
       <head>
         <meta
           name="viewport"

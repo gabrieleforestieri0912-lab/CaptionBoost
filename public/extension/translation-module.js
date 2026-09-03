@@ -1,6 +1,6 @@
 /**
  * Translation Module - Traduzione intelligente con context-awareness
- * Utilizza Ollama con deepseek-r1 (o il motore AI configurato) per comprendere
+ * Utilizza il motore AI configurato (Google Gemini di default) per comprendere
  * il contesto e tradurre accuratamente
  */
 
@@ -31,10 +31,9 @@ const SUPPORTED_LANGUAGES = {
  * Classe per gestire la traduzione intelligente
  */
 class IntelligentTranslator {
-  constructor(targetLanguage = "it", modelName = "deepseek-r1") {
+  constructor(targetLanguage = "it", modelName = "gemini-2.0-flash") {
     this.targetLanguage = targetLanguage;
     this.modelName = modelName;
-    this.llama3Api = "http://localhost:11434/api/generate";
     this.contextCache = new Map();
     this.translationCache = new Map();
   }
@@ -58,7 +57,7 @@ Trascrizione (prime 500 caratteri): ${transcript.substring(0, 500)}...
 
 Rispondi in JSON con: { "genre": "...", "tone": "...", "topics": [...], "terminology": {...} }`;
 
-      const context = await this._callLlama3(prompt);
+      const context = await this._callAI(prompt);
 
       try {
         const parsed = JSON.parse(context);
@@ -94,7 +93,7 @@ Rispondi in JSON con: { "genre": "...", "tone": "...", "topics": [...], "termino
 
       const prompt = this._buildTranslationPrompt(text, languageName, context);
 
-      const translation = await this._callLlama3(prompt);
+      const translation = await this._callAI(prompt);
 
       // Cache della traduzione
       this.translationCache.set(cacheKey, translation);
@@ -169,34 +168,25 @@ Traduzione:`;
   }
 
   /**
-   * Chiama l'API di Llama3
+   * Chiama il motore AI (via service worker dell'estensione, che usa il server
+   * con Google Gemini di default o il provider configurato)
    */
-  async _callLlama3(prompt, temperature = 0.7) {
+  async _callAI(prompt, temperature = 0.7) {
     try {
-      const response = await fetch(this.llama3Api, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: this.modelName,
-          prompt: prompt,
-          stream: false,
-          think: false, // disattiva il ragionamento dei modelli reasoning (deepseek-r1)
-          temperature: temperature,
-          top_p: 0.95,
-          top_k: 40,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Errore HTTP: ${response.status}`);
+      if (typeof chrome !== "undefined" && chrome.runtime && chrome.runtime.sendMessage) {
+        const response = await chrome.runtime.sendMessage({
+          action: "translateSubtitles",
+          subtitles: [{ text: prompt }],
+          targetLanguage: this.targetLanguage,
+        });
+        if (response?.success && response.subtitles?.[0]?.translatedText) {
+          return response.subtitles[0].translatedText;
+        }
+        throw new Error("Nessuna risposta dal motore AI");
       }
-
-      const data = await response.json();
-      return data.response || "";
+      throw new Error("chrome.runtime non disponibile");
     } catch (error) {
-      console.error("❌ Errore nella chiamata a Llama3:", error);
+      console.error("❌ Errore nella chiamata al motore AI:", error);
       throw error;
     }
   }

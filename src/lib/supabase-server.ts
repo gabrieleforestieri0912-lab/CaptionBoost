@@ -19,6 +19,10 @@ export async function createServerSupabase() {
 
   return createServerClient(url, anonKey, {
     cookies: {
+      // Solo i token nel cookie di sessione (l'utente resta in memoria): deve
+      // combaciare con createBrowserClient, altrimenti il cookie con i metadati
+      // OAuth di Google supera il limite header di Node (~16KB) -> 431.
+      encode: 'tokens-only',
       getAll() {
         return cookieStore.getAll()
       },

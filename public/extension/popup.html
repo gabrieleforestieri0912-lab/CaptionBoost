@@ -19,6 +19,27 @@
       font-family: "JetBrains Mono", "JetBrains Mono Fallback", ui-monospace, monospace;
       background: #ffffff;
       color: #0f172a;
+      max-height: 560px;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: #b7d4ff transparent;
+    }
+
+    body::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    body::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    body::-webkit-scrollbar-thumb {
+      background: #b7d4ff;
+      border-radius: 999px;
+    }
+
+    body::-webkit-scrollbar-thumb:hover {
+      background: #4C94FF;
     }
 
     .popup-container {
@@ -91,35 +112,6 @@
       border-radius: 999px;
       background: #4C94FF;
       transition: width 0.25s ease;
-    }
-
-    .quick-links {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
-      margin-bottom: 12px;
-    }
-
-    .quick-link {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-      font-size: 12px;
-      font-weight: 600;
-      text-decoration: none;
-      color: #334155;
-      border: 1px solid #e2e8f0;
-      border-radius: 10px;
-      padding: 8px;
-      background: #f8fafc;
-      transition: all 0.2s ease;
-    }
-
-    .quick-link:hover {
-      background: #EDF4FF;
-      border-color: #B7D4FF;
-      color: #4C94FF;
     }
 
     .card {
@@ -196,6 +188,15 @@
     .btn-primary:hover:not(:disabled) {
       transform: translateY(-1px);
       box-shadow: 0 4px 10px rgba(0, 77, 229, 0.25);
+    }
+
+    .btn-highlight {
+      animation: btn-pulse 1.6s ease-in-out infinite;
+    }
+
+    @keyframes btn-pulse {
+      0%, 100% { box-shadow: 0 0 0 3px rgba(0, 77, 229, 0.35); }
+      50% { box-shadow: 0 0 0 6px rgba(0, 77, 229, 0.18); }
     }
 
     .btn-secondary {
@@ -478,20 +479,12 @@
 
       <div class="quota-card">
         <div class="quota-header">
-          <span>Piano Free</span>
-          <span id="quota-label">0 / 10 video</span>
+          <span id="quota-plan">Piano Free</span>
+          <span id="quota-label">0 / 50 traduzioni</span>
         </div>
         <div class="quota-bar">
           <div class="quota-fill" id="quota-fill"></div>
         </div>
-      </div>
-
-      <div class="quick-links" style="grid-template-columns: 1fr 1fr;">
-        <a href="#" class="quick-link" id="plans-link">Piani</a>
-        <a href="#" class="quick-link" id="subtitles-link">I miei sottotitoli</a>
-        <a href="#" class="quick-link" id="qa-link">AI Q&A</a>
-        <a href="#" class="quick-link" id="support-link">Supporto prioritario</a>
-        <a href="#" class="quick-link" id="settings-link">Settings</a>
       </div>
 
       <div class="settings">
@@ -524,7 +517,7 @@
         </div>
 
         <div class="setting-group">
-          <label class="setting-label">Traduci in (opzionale)</label>
+          <label class="setting-label">Traduci in</label>
           <select class="language-select" id="translate-to">
             <option value="">Nessuna traduzione</option>
             <option value="it">Italiano</option>
@@ -550,12 +543,16 @@
           </select>
         </div>
 
+        <button class="btn btn-primary" id="traduci-video-btn" style="margin-bottom:12px;">
+          Traduci questo video
+        </button>
+
         <div class="setting-group">
           <label class="setting-label">Modello AI</label>
           <select class="model-select" id="model">
-            <option value="deepseek-r1">DeepSeek R1 (Consigliato)</option>
-            <option value="llama3">Llama3 (Veloce)</option>
-            <option value="llama3-70b">Llama3 70B (Accurato)</option>
+            <option value="gemini-2.0-flash">Gemini 2.0 Flash (Consigliato)</option>
+            <option value="gemini-1.5-pro">Gemini 1.5 Pro (Accurato)</option>
+            <option value="gpt-4o-mini">GPT-4o Mini</option>
           </select>
         </div>
 
@@ -648,10 +645,6 @@
           <div class="setting-mini">
             <span>Margine orizzontale</span>
             <input id="captionHorizontalMargin" type="text" value="10%" class="form-input">
-          </div>
-          <div class="setting-mini full">
-            <span>YouTube API Key (opzionale)</span>
-            <input id="youtubeApiKey" type="text" placeholder="AIzaSy..." class="form-input">
           </div>
         </div>
       </div>

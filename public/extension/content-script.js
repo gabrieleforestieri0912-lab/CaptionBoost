@@ -112,7 +112,12 @@ function handleDisconnectedMessage(msg) {
 async function isAuthenticated() {
   try {
     const result = await safeStorageGet({ captionboost_auth_token: null });
-    return !!result.captionboost_auth_token;
+    if (result.captionboost_auth_token) return true;
+    // Nessun token in storage: chiedi al background di sincronizzarsi con la
+    // sessione del sito (chrome.cookies + /api/auth/sync) prima di mostrare
+    // il bottone di login.
+    const resp = await safeSendMessage({ action: "checkAuth" });
+    return !!resp?.authenticated;
   } catch {
     return false;
   }
@@ -123,6 +128,8 @@ let qaPanelHost = null;
 let isQaActive = false;
 let multiLangCaptions = {};
 let currentTranslateLang = '';
+let originalCaptionsData = [];
+let mainTranslateLang = '';
 
 function getLucideIconSvg(name) {
   const icons = {
@@ -246,7 +253,9 @@ function createLoginButtonElement() {
   btn.onclick = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    safeSendMessage({ action: "openLoginTab" });
+    // Apre il popup dell'estensione (login con codice email), non la pagina
+    // di accesso del sito.
+    safeSendMessage({ action: "openPopupLogin" });
   };
 
   return btn;
@@ -264,39 +273,13 @@ function createTranslateButtonElement() {
     `<span class="cb-btn-icon">${getLucideIconSvg("languages")}</span>` +
     `<span class="cb-btn-label">Traduci in ${langName}</span>`;
 
-  btn.onclick = async (e) => {
+  btn.onclick = (e) => {
     e.preventDefault();
     e.stopPropagation();
-
     if (btn.classList.contains("loading")) return;
-
-    if (isSubtitlesActive) {
-      isSubtitlesActive = false;
-      btn.classList.remove("active", "loading");
-      updateTranslateButtonLabel(btn);
-      stopSubtitles();
-      return;
-    }
-
-    btn.classList.add("loading");
-    btn.innerHTML =
-      `<span class="cb-btn-icon"><span class="cb-spinner"></span></span>` +
-      `<span class="cb-btn-label">Generazione...</span>`;
-
-    try {
-      isSubtitlesActive = true;
-      await startSubtitles();
-      btn.classList.remove("loading");
-      btn.classList.add("active");
-      btn.innerHTML =
-        `<span class="cb-btn-icon">${getLucideIconSvg("languages")}</span>` +
-        `<span class="cb-btn-label">Sottotitoli attivi</span>`;
-    } catch (err) {
-      isSubtitlesActive = false;
-      btn.classList.remove("loading", "active");
-      updateTranslateButtonLabel(btn);
-      showToast(err.message || "Impossibile generare i sottotitoli");
-    }
+    // Il click apre il popup dell'estensione sulla schermata delle modifiche:
+    // lì si sceglie la lingua e si avvia la traduzione del video.
+    safeSendMessage({ action: "openPopupTranslate" });
   };
 
   translateButton = btn;
@@ -426,6 +409,13 @@ function createQaPanel() {
         const errDiv = document.createElement("div");
         errDiv.style.cssText = "align-self:flex-start;color:#ff6b6b;font-size:13px;padding:4px 0;";
         errDiv.textContent = resp?.error || "Impossibile ottenere una risposta.";
+        if (resp?.status === 403) {
+          const upgradeBtn = document.createElement("button");
+          upgradeBtn.textContent = "→ Passa a Premium";
+          upgradeBtn.style.cssText = "display:block;margin-top:6px;background:#4C94FF;border:none;border-radius:8px;color:#fff;cursor:pointer;padding:6px 12px;font-size:12px;font-weight:600;";
+          upgradeBtn.onclick = () => { safeSendMessage({ action: "openPricingTab" }); };
+          errDiv.appendChild(upgradeBtn);
+        }
         messages.appendChild(errDiv);
       }
     } catch (err) {
@@ -621,15 +611,28 @@ async function injectSubtitlesButton() {
     const isAuth = await isAuthenticated();
 
     if (isAuth) {
+      // Il bottone "Traduci in X" è dinamico: riflette la lingua selezionata
+      // nel popup (translateTo). Leggila dalla sync prima di creare il bottone,
+      // altrimenti partirebbe sempre da "it" finché non parte la traduzione.
+      const stored = await safeSyncGet({ translateTo: "it" });
+      if (stored.translateTo) currentLanguage = stored.translateTo;
+
       const group = document.createElement("div");
       group.className = "cb-btn-group";
 
       const transBtn = createTranslateButtonElement();
       group.appendChild(transBtn);
 
-      const qaBtn = createQaButtonElement();
-      qaBtn.className = "cb-qa-btn";
-      group.appendChild(qaBtn);
+      // Q&A è Premium: mostriamo il pulsante solo agli abbonati attivi.
+      // La verifica definitiva resta server-side su /api/qa (spec §7).
+      const account = await safeSendMessage({ action: "getAccountInfo" });
+      const plan = account?.plan;
+      const isPremium = plan?.subscriptionStatus === "active" && plan?.plan && plan?.plan !== "free";
+      if (isPremium) {
+        const qaBtn = createQaButtonElement();
+        qaBtn.className = "cb-qa-btn";
+        group.appendChild(qaBtn);
+      }
 
       shadow.appendChild(group);
     } else {
@@ -878,13 +881,13 @@ function stopCaptionSync() {
   }
 }
 
-async function startSubtitles() {
+async function startSubtitles(forceLang) {
   setupSubtitlesHost();
 
   const settings = await safeSyncGet({ translateTo: "it", translationNotes: false });
-  currentLanguage = settings.translateTo || "it";
+  currentLanguage = forceLang || settings.translateTo || "it";
   showTranslationNotes = Boolean(settings.translationNotes);
-  currentTranslateLang = settings.translateTo || "";
+  currentTranslateLang = forceLang || settings.translateTo || "";
 
   const videoId = getVideoId();
   if (!videoId) {
@@ -892,62 +895,43 @@ async function startSubtitles() {
     throw new Error("Nessun video trovato in questa pagina");
   }
 
-  showSubtitleText("🎙️ Trascrizione in corso...", true);
+  showProcessingMessage("Trascrizione in corso");
 
   const fetchResult = await fetchAllCaptions(videoId);
   if (fetchResult.captions.length === 0) {
     console.error("❌ startSubtitles: nessun sottotitolo disponibile per questo video");
     throw new Error("Nessun sottotitolo disponibile per questo video");
   }
-  captionsData = fillCaptionGaps(fetchResult.captions);
-  currentSourceLanguage = fetchResult.sourceLanguage || "en";
+  captionsData = optimizeSubtitleTiming(fetchResult.captions);
 
-  showSubtitleText("🤖 AI sta generando sottotitoli...", true);
+  showProcessingMessage("Generazione sottotitoli AI");
 
-  let resp;
-  try {
-    resp = await safeSendMessage({
-      action: "restructureCaptions",
-      captions: captionsData,
-      targetLanguage: currentLanguage || "it",
-    });
-  } catch (e) {
-    resp = null;
-  }
+  // Conserva la sorgente originale (copia: lo streaming muta captionsData in-place)
+  originalCaptionsData = captionsData.map(c => ({ ...c }));
+  mainTranslateLang = currentLanguage || "it";
+  multiLangCaptions = {};
 
-  if (resp?.success && resp.captions?.length > 0) {
-    captionsData = resp.captions;
+  const restructured = await restructureCaptionsStreaming(captionsData, currentLanguage || "it", videoId);
+
+  if (restructured && restructured.captions && restructured.captions.length > 0) {
+    captionsData = restructured.captions;
+    multiLangCaptions[mainTranslateLang] = restructured.captions;
   } else {
     console.warn("⚠️ AI non disponibile: inietto i sottotitoli originali del video");
     showSubtitleText("⚙️ Sottotitoli originali (AI non disponibile)", true);
-  }
-
-  let allLangResp;
-  if (resp?.success) {
-    try {
-      allLangResp = await safeSendMessage({
-        action: "translateToAllLanguages",
-        captions: captionsData,
-        sourceLanguage: currentSourceLanguage,
-      });
-    } catch (e) {
-      allLangResp = null;
-    }
-    if (allLangResp?.success && allLangResp.translations) {
-      multiLangCaptions = allLangResp.translations;
-      populateLangSwitcher(Object.keys(multiLangCaptions));
+    // Es. non autenticato (401) o limite free raggiunto (429): mostra il
+    // messaggio del server e, se serve il login, apri la pagina di accesso.
+    if (restructured?.error) {
+      showToast(restructured.error);
+      if (restructured.status === 401) {
+        chrome.runtime.sendMessage({ action: "openPopupLogin" });
+      }
     }
   }
 
-  window.addEventListener("captions-language-change", (e) => {
-    const { lang, captions: newCaptions } = e.detail;
-    if (newCaptions && captionsData.length > 0) {
-      captionsData = captionsData.map((c, i) => ({
-        ...c,
-        text: newCaptions[i] || c.text,
-      }));
-    }
-  });
+  // Traduzione on-demand (spec §4): il selettore offre tutte le lingue,
+  // ogni lingua viene tradotta solo quando viene selezionata (e cachata).
+  populateLangSwitcher(Object.keys(LANG_DISPLAY_NAMES));
 
   videoElement = getVideoElement();
   if (!videoElement) {
@@ -1029,8 +1013,180 @@ function populateLangSwitcher(langCodes) {
   }
 }
 
+// Traduzione on-demand per lingua selezionata (spec §4)
+async function applyTranslationForLang(lang, videoId) {
+  if (!lang) {
+    captionsData = originalCaptionsData;
+    return;
+  }
+  if (lang === mainTranslateLang) {
+    captionsData = multiLangCaptions[mainTranslateLang] || originalCaptionsData;
+    return;
+  }
+  if (multiLangCaptions[lang]) {
+    captionsData = multiLangCaptions[lang];
+    return;
+  }
+  try {
+    const resp = await safeSendMessage({
+      action: "restructureCaptions",
+      captions: originalCaptionsData,
+      targetLanguage: lang,
+      videoId,
+    });
+    if (resp?.success && resp.captions?.length > 0) {
+      multiLangCaptions[lang] = resp.captions;
+      captionsData = resp.captions;
+    } else {
+      showToast(resp?.error || "Traduzione non disponibile per questa lingua");
+      if (resp?.status === 401) {
+        chrome.runtime.sendMessage({ action: "openPopupLogin" });
+      }
+    }
+  } catch (e) {
+    console.warn("⚠️ Traduzione on-demand fallita:", e);
+  }
+}
+
+// Traduzione con streaming progressivo (spec §4): apre un port verso il background
+// che streama i sottotitoli da /api/ai/stream; i segmenti vengono aggiornati man
+// mano che il modello li produce. Fallback al percorso non-streaming se il port
+// o lo stream falliscono.
+function restructureCaptionsStreaming(captions, targetLanguage, videoId) {
+  return new Promise((resolve) => {
+    let port = null;
+    let finished = false;
+    let fallbackStarted = false;
+
+    const completeWith = (result) => {
+      if (finished) return;
+      finished = true;
+      try { if (port) port.disconnect(); } catch (e) { /* noop */ }
+      resolve(result);
+    };
+
+    const fallbackThenComplete = async () => {
+      if (finished || fallbackStarted) return;
+      fallbackStarted = true;
+      completeWith(await fallbackRestructure(captions, targetLanguage, videoId));
+    };
+
+    try {
+      port = chrome.runtime.connect({ name: "cb-stream-restructure" });
+    } catch (e) {
+      fallbackThenComplete();
+      return;
+    }
+
+    port.onMessage.addListener((msg) => {
+      if (!msg || finished) return;
+      if (msg.type === "progress" && typeof msg.idx === "number" && msg.text) {
+        // Aggiorna il segmento in tempo reale: il prossimo timeupdate lo mostrerà
+        if (captions[msg.idx]) {
+          captions[msg.idx] = { ...captions[msg.idx], text: msg.text };
+        }
+      } else if (msg.type === "done" && Array.isArray(msg.captions)) {
+        completeWith({ captions: msg.captions, error: null });
+      } else if (msg.type === "fallback" && Array.isArray(msg.captions)) {
+        completeWith({ captions: msg.captions, error: null });
+      } else if (msg.type === "error") {
+        fallbackThenComplete();
+      }
+    });
+
+    port.onDisconnect.addListener(fallbackThenComplete);
+
+    port.postMessage({ action: "streamRestructure", captions, targetLanguage, videoId });
+  });
+}
+
+// Percorso classico (non-streaming): usato come fallback quando lo streaming fallisce
+async function fallbackRestructure(captions, targetLanguage, videoId) {
+  try {
+    const resp = await safeSendMessage({
+      action: "restructureCaptions",
+      captions,
+      targetLanguage,
+      videoId,
+    });
+    if (resp?.success && resp.captions?.length > 0) {
+      return { captions: resp.captions, error: null, status: 0 };
+    }
+    if (resp?.error) {
+      return { captions: null, error: resp.error, status: resp.status || 0 };
+    }
+  } catch (e) {
+    console.warn("⚠️ Fallback restructure fallito:", e);
+    return { captions: null, error: e?.message || "Errore di traduzione", status: e?.status || 0 };
+  }
+  return { captions: null, error: null, status: 0 };
+}
+
 let showTranslationNotes = false;
-let currentSourceLanguage = "en";
+let processingStyleInjected = false;
+
+function ensureProcessingStyles() {
+  if (processingStyleInjected) return;
+  processingStyleInjected = true;
+  const style = document.createElement("style");
+  style.textContent = `
+    .cb-processing {
+      display: inline-flex !important;
+      align-items: center !important;
+      gap: 10px !important;
+      animation: cb-processing-pulse 1.6s ease-in-out infinite !important;
+    }
+    .cb-processing-spinner {
+      width: 18px !important;
+      height: 18px !important;
+      border: 2px solid rgba(255, 255, 255, 0.25) !important;
+      border-top-color: #4C94FF !important;
+      border-radius: 50% !important;
+      flex-shrink: 0 !important;
+      animation: cb-processing-spin 0.8s linear infinite !important;
+    }
+    .cb-processing-text { color: #fff !important; font-size: 14px !important; font-weight: 500 !important; }
+    .cb-processing-dots { display: inline-block !important; min-width: 1.2em !important; text-align: left !important; }
+    @keyframes cb-processing-spin { to { transform: rotate(360deg); } }
+    @keyframes cb-processing-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+  `;
+  document.head.appendChild(style);
+}
+
+// Messaggio di elaborazione animato nello spazio dei futuri sottotitoli
+// (spinner + testo pulsante + puntini progressivi)
+function showProcessingMessage(text) {
+  if (!isSubtitlesActive || !subtitlesHost || !subtitlesContainer) return;
+  subtitleVersion++;
+  const version = subtitleVersion;
+  ensureProcessingStyles();
+
+  subtitlesContainer.innerHTML =
+    '<div class="cb-processing">' +
+    '<span class="cb-processing-spinner"></span>' +
+    `<span class="cb-processing-text">${text}<span class="cb-processing-dots"></span></span>` +
+    '</div>';
+
+  subtitlesHost.style.setProperty("display", "flex", "important");
+  requestAnimationFrame(() => {
+    if (!subtitlesHost) return;
+    if (version === subtitleVersion) {
+      subtitlesHost.style.setProperty("opacity", "1", "important");
+    }
+  });
+
+  // Puntini progressivi animati via JS (affidabile su tutti i browser)
+  let dots = 0;
+  const iv = setInterval(() => {
+    const dotHost = document.querySelector(".cb-processing-dots");
+    if (version !== subtitleVersion || !dotHost || !dotHost.isConnected) {
+      clearInterval(iv);
+      return;
+    }
+    dots = (dots + 1) % 4;
+    dotHost.textContent = ".".repeat(dots);
+  }, 350);
+}
 
 async function shouldShowSubtitles() {
   const settings = await safeSyncGet({ showCaptions: true, showOriginalCaptions: true });
@@ -1096,22 +1252,69 @@ function hideSubtitleContainer() {
   }, 250);
 }
 
-function fillCaptionGaps(captions) {
-  if (captions.length < 2) return captions;
+/**
+ * Ottimizza i sottotitoli grezzi per la leggibilità (spec §3 step 3).
+ * Funzione pura e testabile, senza dipendenze da chrome/DOM:
+ * - pulisce il testo (spazi multipli) e scarta i segmenti vuoti/invalidi
+ * - unisce i segmenti troppo corti a quello successivo
+ * - garantisce un tempo minimo di permanenza a schermo, senza sforare
+ *   l'inizio del segmento successivo
+ */
+function optimizeSubtitleTiming(captions, opts = {}) {
+  const minDuration = opts.minDuration ?? 1.2;        // permanenza minima a schermo (s)
+  const minMergeThreshold = opts.minMergeThreshold ?? 0.7; // sotto questa durata, fondi col successivo
+  if (!Array.isArray(captions) || captions.length === 0) return [];
+
+  const cleaned = captions
+    .map(c => ({
+      start: Number(c.start) || 0,
+      end: Number(c.end) || (Number(c.start) || 0) + 3,
+      text: (c.text || '').replace(/\s+/g, ' ').trim(),
+    }))
+    .filter(c => c.text && c.end > c.start);
+
   const result = [];
-  for (let i = 0; i < captions.length; i++) {
-    const current = { ...captions[i] };
-    if (i < captions.length - 1) {
-      const next = captions[i + 1];
-      const gap = next.start - current.end;
-      if (gap > 0 && gap < 0.5) {
-        current.end = next.start;
-      }
+  let pending = null;
+
+  for (let i = 0; i < cleaned.length; i++) {
+    const seg = { ...cleaned[i] };
+
+    if (pending) {
+      // Accorpa il segmento corto precedente in questo
+      seg.start = pending.start;
+      seg.text = pending.text + ' ' + seg.text;
+      pending = null;
     }
-    if (current.end > current.start) {
-      result.push(current);
+
+    const next = cleaned[i + 1];
+    if (!next) {
+      // Ultimo segmento: assicura solo la durata minima
+      if (seg.end - seg.start < minDuration) seg.end = seg.start + minDuration;
+      result.push(seg);
+      continue;
     }
+
+    if (seg.end - seg.start < minMergeThreshold) {
+      // Troppo corto: accorpalo al successivo
+      pending = seg;
+      continue;
+    }
+
+    if (seg.end - seg.start < minDuration) {
+      // Estendi alla durata minima, senza sforare l'inizio del successivo
+      seg.end = Math.min(seg.start + minDuration, next.start);
+      if (seg.end <= seg.start) seg.end = seg.start + 0.1;
+    }
+
+    result.push(seg);
   }
+
+  if (pending && result.length > 0) {
+    const last = result[result.length - 1];
+    last.text = last.text + ' ' + pending.text;
+    last.start = Math.min(last.start, pending.start);
+  }
+
   return result;
 }
 
@@ -1142,7 +1345,22 @@ async function fetchAllCaptions(videoId) {
     }
   }
 
-  return { captions: await fetchDirectCaptions(videoId), sourceLanguage };
+  const directCaptions = await fetchDirectCaptions(videoId);
+  if (directCaptions.length > 0) return { captions: directCaptions, sourceLanguage };
+
+  // Fallback finale (spec §3 step 2): il server prova a recuperare la
+  // trascrizione quando YouTube non fornisce captions al client.
+  try {
+    const resp = await safeSendMessage({ action: 'fetchTranscriptFallback', videoId });
+    if (resp?.success && resp.captions?.length > 0) {
+      return { captions: resp.captions, sourceLanguage };
+    }
+    console.warn('⚠️ Transcript fallback server non disponibile:', resp?.error);
+  } catch (e) {
+    console.warn('⚠️ Transcript fallback fallito:', e);
+  }
+
+  return { captions: [], sourceLanguage };
 }
 
 async function fetchTracksViaAPI(videoId, apiKey) {
@@ -1226,13 +1444,10 @@ function setupSubtitlesHost() {
     "font-family:\"JetBrains Mono\",ui-monospace,SFMono-Regular,monospace;";
   langSelect.innerHTML = '<option value="">Lingua originale</option>';
 
-  langSelect.addEventListener("change", (e) => {
+  langSelect.addEventListener("change", async (e) => {
     const lang = e.target.value;
     currentTranslateLang = lang;
-    if (lang && multiLangCaptions[lang]) {
-      const customEvent = new CustomEvent("captions-language-change", { detail: { lang, captions: multiLangCaptions[lang] } });
-      window.dispatchEvent(customEvent);
-    }
+    await applyTranslationForLang(lang, getVideoId());
     positionSubtitlesOverPlayer();
   });
 
@@ -1344,7 +1559,7 @@ async function fetchCaptionsForBridge(videoId, lang, sourceLang) {
     return { success: false, error: 'Nessun sottotitolo disponibile per questo video' };
   }
 
-  let captions = fillCaptionGaps(fetchResult.captions);
+  let captions = optimizeSubtitleTiming(fetchResult.captions);
   const sourceLanguage = fetchResult.sourceLanguage || 'en';
 
   if (lang && lang !== sourceLanguage) {
@@ -1353,6 +1568,7 @@ async function fetchCaptionsForBridge(videoId, lang, sourceLang) {
         action: 'restructureCaptions',
         captions,
         targetLanguage: lang,
+        videoId,
       });
       if (resp?.success && resp.captions?.length > 0) {
         captions = resp.captions;
@@ -1366,6 +1582,35 @@ async function fetchCaptionsForBridge(videoId, lang, sourceLang) {
 }
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action === "authStateChanged") {
+    // Login/logout sincronizzato dal sito: rigenera il bottone nel player
+    injectSubtitlesButton();
+    sendResponse({ success: true });
+    return true;
+  }
+
+  if (request.action === "startTranslateVideo") {
+    const lang = request.lang || "it";
+    chrome.storage.sync.set({ translateTo: lang, enabled: true });
+    isSubtitlesActive = true;
+    startSubtitles(lang)
+      .then(() => {
+        if (translateButton) {
+          translateButton.classList.remove("loading");
+          translateButton.classList.add("active");
+          translateButton.innerHTML =
+            `<span class="cb-btn-icon">${getLucideIconSvg("languages")}</span>` +
+            `<span class="cb-btn-label">Sottotitoli attivi</span>`;
+        }
+        sendResponse({ success: true });
+      })
+      .catch((error) => {
+        isSubtitlesActive = false;
+        sendResponse({ success: false, error: error.message });
+      });
+    return true;
+  }
+
   if (request.action === 'getCaptionsForVideo') {
     fetchCaptionsForBridge(request.videoId, request.lang, request.sourceLang)
       .then(result => sendResponse(result))

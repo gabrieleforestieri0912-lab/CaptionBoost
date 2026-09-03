@@ -11,7 +11,15 @@ export async function GET(request: Request) {
   if (code) {
     try {
       const supabase = await createServerSupabase()
-      const { error } = await supabase.auth.exchangeCodeForSession(code)
+      // Il flusso OAuth di supabase-js (>= 2.8x) salva il code verifier PKCE in
+      // una chiave per-flow e la riferisce nell'URL di redirect con `sb_flow_id`.
+      // Senza passarla, exchangeCodeForSession cerca la chiave legacy (mai
+      // scritta) e fallisce con AuthPKCECodeVerifierMissingError.
+      const flowId = searchParams.get('sb_flow_id')
+      const { error } = await supabase.auth.exchangeCodeForSession(
+        code,
+        flowId ? { flowId } : undefined
+      )
 
       if (!error) {
         const {
