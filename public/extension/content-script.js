@@ -88,6 +88,19 @@ function safeSendMessage(msg) {
             cleanupSubtitlesContainer();
             return resolve(handleDisconnectedMessage(msg));
           }
+          // Il service worker può sospendersi mentre una risposta asincrona è in
+          // volo, chiudendo il canale prima che sendResponse venga chiamata (MV3).
+          // Non è un vero errore: risolviamo senza smontare l'UI né loggare un
+          // giallo, il chiamante esegue il proprio fallback (es. ritenta o disabilita).
+          if (
+            errMsg.includes('message port closed') ||
+            errMsg.includes('channel closed') ||
+            errMsg.includes('message channel closed') ||
+            errMsg.includes('receiving end does not exist') ||
+            errMsg.includes('could not establish connection')
+          ) {
+            return resolve(handleDisconnectedMessage(msg));
+          }
           console.warn('⚠️ runtime.sendMessage error:', errMsg);
           return resolve(null);
         }
