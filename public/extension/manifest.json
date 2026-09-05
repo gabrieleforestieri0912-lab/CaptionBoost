@@ -8,7 +8,7 @@
     "https://www.youtube.com/*",
     "http://localhost:3000/*",
     "http://localhost:3007/*",
-    "https://captionboost.it/*"
+    "https://captionboost.vercel.app/*"
   ],
   "action": {
     "default_popup": "popup.html",
@@ -30,7 +30,7 @@
       "matches": [
         "http://localhost:3000/*",
         "http://localhost:3007/*",
-        "https://captionboost.it/*"
+        "https://captionboost.vercel.app/*"
       ],
       "js": ["bridge.js"],
       "run_at": "document_end"

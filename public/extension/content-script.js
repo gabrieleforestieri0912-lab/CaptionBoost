@@ -119,7 +119,7 @@ function safeSendMessage(msg) {
 
 function handleDisconnectedMessage(msg) {
   if (msg.action === 'openLoginTab') {
-    window.open('https://captionboost.it/login', '_blank');
+    window.open('https://captionboost.vercel.app/login', '_blank');
     return { success: true };
   }
   return null;

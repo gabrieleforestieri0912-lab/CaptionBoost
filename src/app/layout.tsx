@@ -45,7 +45,7 @@ export const metadata: Metadata = {
     title: "CaptionBoost - AI YouTube Subtitles",
     description:
       "Scopri video YouTube senza barriere linguistiche con sottotitoli AI generati in tempo reale.",
-    url: "https://captionboost.it",
+    url: "https://captionboost.vercel.app",
     siteName: "CaptionBoost",
     type: "website",
     images: [
@@ -64,7 +64,7 @@ export const metadata: Metadata = {
       "Scopri video YouTube senza barriere linguistiche con sottotitoli AI generati in tempo reale.",
     images: ["/captionboost-og.png"],
   },
-  metadataBase: new URL("https://captionboost.it"),
+  metadataBase: new URL("https://captionboost.vercel.app"),
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
@@ -87,7 +87,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <meta name="format-detection" content="telephone=no" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="robots" content="index, follow" />
-        <link rel="canonical" href="https://captionboost.it" />
+        <link rel="canonical" href="https://captionboost.vercel.app" />
       </head>
       <body className="min-h-full flex flex-col font-mono">
         <LanguageProvider>

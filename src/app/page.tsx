@@ -51,12 +51,12 @@ const StructuredData = () => {
       "Customizable subtitle appearance",
       "Multi-language support",
     ],
-    screenshot: "https://captionboost.it/og-image.png",
+    screenshot: "https://captionboost.vercel.app/og-image.png",
     softwareVersion: "1.0.0",
     author: {
       "@type": "Organization",
       name: "CaptionBoost",
-      url: "https://captionboost.it",
+      url: "https://captionboost.vercel.app",
     },
     aggregateRating: {
       "@type": "AggregateRating",
