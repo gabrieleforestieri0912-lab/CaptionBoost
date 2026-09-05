@@ -79,6 +79,13 @@ async function safeSyncGet(defaults, retries = 2) {
 
 function safeSendMessage(msg) {
   return new Promise((resolve) => {
+    // Contesto estensione invalidato (reload/update, SW sospeso o pagina che
+    // naviga): chrome.runtime è undefined. Trattalo come un canale chiuso e
+    // lascia il fallback al chiamante, senza loggare un warning né smontare l'UI.
+    if (!chrome?.runtime?.sendMessage) {
+      resolve(handleDisconnectedMessage(msg));
+      return;
+    }
     try {
       chrome.runtime.sendMessage(msg, (resp) => {
         if (chrome.runtime.lastError) {
@@ -110,6 +117,11 @@ function safeSendMessage(msg) {
         resolve(resp);
       });
     } catch (e) {
+      // Contesto invalidato a metà chiamata: fallback silenzioso, niente panic.
+      if (e?.message?.includes('Extension context invalidated')) {
+        resolve(handleDisconnectedMessage(msg));
+        return;
+      }
       console.warn('⚠️ safeSendMessage error:', e);
       cleanupSubtitlesContainer();
       resolve(handleDisconnectedMessage(msg));
