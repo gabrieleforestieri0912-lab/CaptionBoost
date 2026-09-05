@@ -7,7 +7,7 @@ export async function POST(request: Request) {
   const { user } = await getAuthenticatedUser(request)
   const userId = user?.id || null
   const userEmail = user?.email || 'anonymous'
-  const userName = user?.user_metadata?.full_name || user?.user_metadata?.name || 'Anonymous'
+  const userName = user?.name || 'Anonymous'
 
   try {
     const { type, message, rating } = await request.json() as {
