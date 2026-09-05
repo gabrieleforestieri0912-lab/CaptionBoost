@@ -16,13 +16,12 @@ export interface AiStreamOptions {
 }
 
 export function isStreamableProvider(provider: AiProvider): boolean {
-  return ['openai', 'groq', 'gemini', 'anthropic', 'ollama'].includes(provider)
+  return ['openai', 'groq', 'gemini', 'anthropic'].includes(provider)
 }
 
 /**
  * Streaming della risposta AI (spec §4): genera i token uno alla volta.
  * - openai / groq: SDK OpenAI con stream:true
- * - ollama: /api/generate con stream:true (NDJSON)
  * - gemini: streamGenerateContent (SSE)
  * - anthropic: /v1/messages con stream:true (SSE)
  * - deepl / mock / altro: nessuno streaming, emette tutto in un colpo
@@ -34,11 +33,7 @@ export async function* streamProductionAI(
     options.provider ||
     (process.env.DEFAULT_AI_PROVIDER as AiProvider) ||
     'gemini'
-  const model =
-    options.model ||
-    (provider === 'ollama'
-      ? process.env.DEFAULT_AI_MODEL || DEFAULT_MODELS.ollama
-      : DEFAULT_MODELS[provider] || 'gemini-2.0-flash')
+  const model = options.model || DEFAULT_MODELS[provider] || 'gemini-2.0-flash'
   const apiKey = getEffectiveApiKey(provider, options.apiKey)
   const temperature = options.temperature ?? 0.3
   const maxTokens = options.maxTokens ?? 2000
@@ -73,30 +68,6 @@ export async function* streamProductionAI(
       const delta = part.choices?.[0]?.delta?.content
       if (delta) yield delta
     }
-    return
-  }
-
-  if (provider === 'ollama') {
-    const ollamaUrl = (
-      process.env.OLLAMA_API_URL || 'http://localhost:11434'
-    ).replace(/\/+$/, '')
-    const resp = await fetch(`${ollamaUrl}/api/generate`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model,
-        prompt: options.prompt,
-        stream: true,
-        think: false, // disattiva i blocchi di ragionamento dei modelli reasoning (deepseek-r1)
-        options: { temperature, num_predict: maxTokens },
-      }),
-    })
-    if (!resp.ok) {
-      const errText = await resp.text()
-      throw new Error(`Ollama API Error (${resp.status}): ${errText}`)
-    }
-    if (!resp.body) throw new Error('Ollama: stream non disponibile')
-    yield* readNdjson(resp.body, (data) => data.response)
     return
   }
 
@@ -175,40 +146,7 @@ export async function* streamProductionAI(
   yield result.text
 }
 
-/** Legge un flusso NDJSON (una riga = un JSON) e ne estrae il testo per riga. */
-// I payload JSON dei provider variano molto: usiamo `any` per le callback
-// di estrazione (i campi accessibili sono verificati dal provider specifico).
 type ExtractFn = (data: any) => string
-
-async function* readNdjson(
-  body: ReadableStream<Uint8Array>,
-  extract: ExtractFn
-): AsyncGenerator<string> {
-  const reader = body.getReader()
-  const decoder = new TextDecoder()
-  let buffer = ''
-  try {
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
-      buffer += decoder.decode(value, { stream: true })
-      let nl: number
-      while ((nl = buffer.indexOf('\n')) !== -1) {
-        const line = buffer.slice(0, nl).trim()
-        buffer = buffer.slice(nl + 1)
-        if (!line) continue
-        try {
-          const text = extract(JSON.parse(line))
-          if (text) yield text
-        } catch {
-          // riga non JSON: ignora
-        }
-      }
-    }
-  } finally {
-    reader.releaseLock()
-  }
-}
 
 /** Legge un flusso SSE (eventi `data: ...` separati da riga vuota) e ne estrae il testo. */
 async function* readSse(

@@ -101,7 +101,7 @@ const SUPPORTED_LANGUAGES = {
 // Ascolta i messaggi dai content script
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'generateSubtitles') {
-    generateSubtitlesWithLlama(request.transcript)
+    generateSubtitlesWithAI(request.transcript)
       .then(subtitles => {
         sendResponse({ success: true, subtitles });
       })
@@ -247,7 +247,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 /**
  * Genera sottotitoli usando il motore AI (predefinito: Google Gemini)
  */
-async function generateSubtitlesWithLlama(transcript) {
+async function generateSubtitlesWithAI(transcript) {
   try {
     // Ottieni le preferenze salvate
     const settings = await chrome.storage.sync.get(['language', 'model']);
@@ -258,7 +258,7 @@ async function generateSubtitlesWithLlama(transcript) {
     const prompt = buildSubtitlePrompt(transcript, targetLanguage);
 
     // Chiama il motore AI
-    const response = await callLlama(prompt, model);
+    const response = await callAIServer(prompt, model);
 
     // Estrai e elabora i sottotitoli
     const subtitles = parseSubtitles(response);
@@ -298,7 +298,7 @@ async function translateSubtitles(subtitles, targetLanguage, context = {}) {
       );
 
       try {
-        const response = await callLlama(prompt, model);
+        const response = await callAIServer(prompt, model);
         const lines = response
           .split('\n')
           .map((l) => l.trim())
@@ -403,7 +403,7 @@ Esempio:
 
 Rispondi SOLO con JSON valido, senza testo aggiuntivo:`;
 
-    const response = await callLlama(prompt, 'gemini-2.0-flash');
+    const response = await callAIServer(prompt, 'gemini-2.0-flash');
     
     try {
       return JSON.parse(response);
@@ -468,7 +468,7 @@ async function getAISettings() {
  * - Predefinito: il server usa Google Gemini con gemini-2.0-flash.
  * - Con API Key: il server sceglie automaticamente il modello più adatto per il provider.
  */
-async function callLlama(prompt, overrideModel = null) {
+async function callAIServer(prompt, overrideModel = null) {
   const { aiEngine, aiProvider, apiKey, model } = await getAISettings();
 
   // Cloud / API Key: il modello viene inviato solo se configurato esplicitamente
@@ -727,7 +727,7 @@ async function restructureCaptions(captions, targetLanguage, videoId) {
   const prompt = buildRestructurePrompt(captions, targetLanguage);
 
   try {
-    const output = await callLlama(prompt);
+    const output = await callAIServer(prompt);
 
     if (output) {
       const result = parseRestructuredOutput(output, captions);

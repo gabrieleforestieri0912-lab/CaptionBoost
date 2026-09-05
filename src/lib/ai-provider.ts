@@ -1,6 +1,6 @@
 import OpenAI from 'openai'
 
-export type AiProvider = 'openai' | 'gemini' | 'groq' | 'anthropic' | 'deepl' | 'ollama' | 'mock'
+export type AiProvider = 'openai' | 'gemini' | 'groq' | 'anthropic' | 'deepl' | 'mock'
 
 export interface AiOptions {
   prompt: string
@@ -32,7 +32,6 @@ export const DEFAULT_MODELS: Record<AiProvider, string> = {
   groq: 'llama-3.3-70b-versatile',
   anthropic: 'claude-3-5-haiku-20241022',
   deepl: 'default',
-  ollama: 'deepseek-r1',
   mock: 'mock-model',
 }
 
@@ -56,9 +55,6 @@ export function getEffectiveApiKey(provider: AiProvider, customKey?: string): st
       return process.env.ANTHROPIC_API_KEY || null
     case 'deepl':
       return process.env.DEEPL_API_KEY || null
-    case 'ollama':
-      // Ollama è un motore locale: nessuna API key richiesta
-      return null
     case 'mock':
       return 'mock-key'
     default:
@@ -78,16 +74,12 @@ export async function callProductionAI(options: AiOptions): Promise<AiResponse> 
   const provider = options.provider || (process.env.DEFAULT_AI_PROVIDER as AiProvider) || 'gemini'
   // Ogni provider usa il modello più adatto per i sottotitoli (vedi DEFAULT_MODELS),
   // con possibilità di override esplicito o di modello di default dal server.
-  const model = options.model || (
-    provider === 'ollama'
-      ? (process.env.DEFAULT_AI_MODEL || DEFAULT_MODELS.ollama)
-      : (DEFAULT_MODELS[provider] || 'gemini-2.0-flash')
-  )
+  const model = options.model || DEFAULT_MODELS[provider] || 'gemini-2.0-flash'
   const apiKey = getEffectiveApiKey(provider, options.apiKey)
   const temperature = options.temperature ?? 0.3
   const maxTokens = options.maxTokens ?? 2000
 
-  if (!apiKey && provider !== 'mock' && provider !== 'ollama') {
+  if (!apiKey && provider !== 'mock') {
     throw new Error(
       `API Key non trovata per il provider "${provider}". Configura la chiave API nelle impostazioni o nei file d'ambiente del server (${provider.toUpperCase()}_API_KEY).`
     )
@@ -188,46 +180,6 @@ export async function callProductionAI(options: AiOptions): Promise<AiResponse> 
     const data = await resp.json()
     const text = data.content?.[0]?.text || ''
     return { text, provider: 'anthropic', model }
-  }
-
-  if (provider === 'ollama') {
-    // Ollama locale (es. deepseek-r1): nessuna API key richiesta.
-    const ollamaUrl = (process.env.OLLAMA_API_URL || 'http://localhost:11434').replace(/\/+$/, '')
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 60000)
-    try {
-      const resp = await fetch(`${ollamaUrl}/api/generate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model,
-          prompt: options.prompt,
-          stream: false,
-          think: false, // disattiva i blocchi di ragionamento dei modelli reasoning (deepseek-r1)
-          options: { temperature, num_predict: maxTokens },
-        }),
-        signal: controller.signal,
-      })
-
-      if (!resp.ok) {
-        const errText = await resp.text()
-        throw new Error(`Ollama API Error (${resp.status}): ${errText}`)
-      }
-
-      const data = await resp.json()
-      const text = data.response || ''
-      return { text, provider: 'ollama', model }
-    } catch (error) {
-      const message = (error as Error).message || 'errore sconosciuto'
-      if ((error as Error).name === 'AbortError') {
-        throw new Error(
-          `Ollama locale non risponde (timeout). Avvia "ollama serve" e assicurati che il modello "${model}" sia installato (ollama pull ${model}).`
-        )
-      }
-      throw new Error(`Impossibile contattare Ollama locale (${ollamaUrl}): ${message}`)
-    } finally {
-      clearTimeout(timeoutId)
-    }
   }
 
   if (provider === 'deepl') {
