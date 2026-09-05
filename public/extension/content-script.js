@@ -83,22 +83,25 @@ function safeSendMessage(msg) {
       chrome.runtime.sendMessage(msg, (resp) => {
         if (chrome.runtime.lastError) {
           const errMsg = chrome.runtime.lastError.message || '';
-          if (errMsg.includes('context invalidated') || errMsg.includes('disconnected')) {
-            console.warn('⚠️ Extension context invalidated, reloading state');
-            cleanupSubtitlesContainer();
-            return resolve(handleDisconnectedMessage(msg));
-          }
-          // Il service worker può sospendersi mentre una risposta asincrona è in
-          // volo, chiudendo il canale prima che sendResponse venga chiamata (MV3).
-          // Non è un vero errore: risolviamo senza smontare l'UI né loggare un
-          // giallo, il chiamante esegue il proprio fallback (es. ritenta o disabilita).
+          const errLower = errMsg.toLowerCase();
           if (
-            errMsg.includes('message port closed') ||
-            errMsg.includes('channel closed') ||
-            errMsg.includes('message channel closed') ||
-            errMsg.includes('receiving end does not exist') ||
-            errMsg.includes('could not establish connection')
+            errLower.includes('context invalidated') ||
+            errLower.includes('disconnected') ||
+            errLower.includes('message port closed') ||
+            errLower.includes('channel closed') ||
+            errLower.includes('receiving end does not exist') ||
+            errLower.includes('could not establish connection') ||
+            errLower.includes('no receiving end')
           ) {
+            // Il service worker può sospendersi mentre una risposta asincrona è in
+            // volo, chiudendo il canale prima che sendResponse venga chiamata (MV3),
+            // oppure la pagina sta navigando. Non è un vero errore: risolviamo
+            // senza smontare l'UI né loggare un giallo; il chiamante esegue il
+            // proprio fallback.
+            if (errLower.includes('context invalidated')) {
+              console.warn('⚠️ Extension context invalidated, reloading state');
+              cleanupSubtitlesContainer();
+            }
             return resolve(handleDisconnectedMessage(msg));
           }
           console.warn('⚠️ runtime.sendMessage error:', errMsg);
