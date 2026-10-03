@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { MessageCircle, X, Send, Sparkles } from 'lucide-react'
+import { useLanguage } from '@/contexts/LanguageContext'
 
 type Message = {
   role: 'user' | 'assistant'
@@ -16,10 +17,11 @@ type QAOverlayProps = {
 }
 
 export default function QAOverlay({ videoTitle, captionsContext, onClose }: QAOverlayProps) {
+  const { t, language } = useLanguage()
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'assistant',
-      content: `Ciao! Chiedimi qualsiasi cosa sul contenuto di questo video "${videoTitle}".`,
+      content: `${t('qaGreeting')} "${videoTitle}".`,
     },
   ])
   const [input, setInput] = useState('')
@@ -39,7 +41,8 @@ export default function QAOverlay({ videoTitle, captionsContext, onClose }: QAOv
     setLoading(true)
 
     try {
-      const prompt = `Sei un assistente esperto che risponde a domande sul contenuto di un video.
+      const prompt = language === 'it'
+        ? `Sei un assistente esperto che risponde a domande sul contenuto di un video.
 Titolo video: ${videoTitle}
 Sottotitoli del video:
 ${captionsContext}
@@ -47,6 +50,14 @@ ${captionsContext}
 Domanda dell'utente: ${question}
 
 Rispondi in modo chiaro e conciso basandoti solo sui sottotitoli del video. Se la domanda non è relativa al contenuto del video, dillo gentilmente.`
+        : `You are an expert assistant answering questions about a video's content.
+Video title: ${videoTitle}
+Video subtitles:
+${captionsContext}
+
+User question: ${question}
+
+Answer clearly and concisely based only on the video subtitles. If the question is not related to the video content, say so politely.`
 
       const resp = await fetch('/api/ai', {
         method: 'POST',
@@ -54,11 +65,11 @@ Rispondi in modo chiaro e conciso basandoti solo sui sottotitoli del video. Se l
         body: JSON.stringify({ prompt, max_tokens: 800 }),
       })
       const data = await resp.json()
-      setMessages((prev) => [...prev, { role: 'assistant', content: data.response || 'Mi dispiace, non ho potuto elaborare la domanda.' }])
+      setMessages((prev) => [...prev, { role: 'assistant', content: data.response || t('qaError') }])
     } catch {
       setMessages((prev) => [
         ...prev,
-        { role: 'assistant', content: 'Si è verificato un errore. Riprova più tardi.' },
+        { role: 'assistant', content: t('qaNetworkError') },
       ])
     } finally {
       setLoading(false)
@@ -116,7 +127,7 @@ Rispondi in modo chiaro e conciso basandoti solo sui sottotitoli del video. Se l
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-primary" />
                   </span>
-                  <span>Sto pensando...</span>
+                  <span>…</span>
                 </div>
               </div>
             </div>
@@ -131,7 +142,7 @@ Rispondi in modo chiaro e conciso basandoti solo sui sottotitoli del video. Se l
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Fai una domanda sul video..."
+              placeholder={t('qaPlaceholder')}
               disabled={loading}
               className="flex-1 bg-slate-800 text-white text-sm rounded-xl px-4 py-2.5 placeholder-slate-500 border border-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 disabled:opacity-50"
             />

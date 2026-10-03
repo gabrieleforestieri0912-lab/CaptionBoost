@@ -174,7 +174,7 @@ export default function Home() {
                   {[
                     { href: "#features", label: t("features") },
                     { href: "/pricing", label: t("pricing") },
-                    { href: "#how-it-works", label: "Come funziona" },
+                    { href: "#how-it-works", label: t("howItWorks") },
                   ].map((link: { href: string; label: string }) => (
                     <Link
                       key={link.href}
@@ -216,7 +216,7 @@ export default function Home() {
                             {t("settings")}
                           </Link>
                           <Link href="/account" className="block px-4 py-2 text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-50">
-                            I miei sottotitoli
+                            {t("mySubtitles")}
                           </Link>
                           <div className="mt-1 pt-1 border-t border-slate-50">
                             <button
@@ -263,7 +263,7 @@ export default function Home() {
                 {[
                   { href: "#features", label: t("features") },
                   { href: "/pricing", label: t("pricing") },
-                  { href: "#how-it-works", label: "Come funziona" },
+                  { href: "#how-it-works", label: t("howItWorks") },
                 ].map((link: { href: string; label: string }) => (
                   <Link
                     key={link.href}
@@ -278,7 +278,7 @@ export default function Home() {
                 {session ? (
                   <>
                     <Link href="/account" onClick={() => setMobileMenuOpen(false)} className="block px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 rounded-xl">
-                      I miei sottotitoli
+                      {t("mySubtitles")}
                     </Link>
                     <button onClick={async () => { setMobileMenuOpen(false); await signOut(); router.push("/login"); }} className="w-full text-left px-4 py-3 text-sm font-bold text-rose-600 hover:bg-rose-50 rounded-xl">
                       {t("logout")}
@@ -302,7 +302,7 @@ export default function Home() {
         <main>
           {showCheckoutSuccess && (
             <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[60] px-5 py-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm font-semibold shadow-lg shadow-emerald-900/10">
-              ✓ Abbonamento attivato con successo. Benvenuto in Pro!
+              ✓ {t("checkoutSuccess")}
             </div>
           )}
           <section className="relative min-h-[90vh] flex items-center overflow-hidden bg-white">
@@ -317,7 +317,7 @@ export default function Home() {
                   <motion.div variants={fadeInUp}>
                     <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary-50 border border-primary-200/50 rounded-full text-sm font-medium text-primary mb-6">
                       <Sparkles className="w-4 h-4" />
-                      <span>AI-powered subtitle translation</span>
+                      <span>{t("heroBadge")}</span>
                     </div>
                   </motion.div>
 
@@ -326,12 +326,12 @@ export default function Home() {
                     className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-[1.1] tracking-tight"
                   >
                     <span className="text-slate-900">
-                        I sottotitoli automatici di <span className="text-[#FF0000]">YouTube</span> sono <span className="text-slate-900 underline underline-offset-4 decoration-2 decoration-primary/60">imprecisi</span>.
+                        {t("heroH1a")} <span className="text-[#FF0000]">YouTube</span> <span className="text-slate-900 underline underline-offset-4 decoration-2 decoration-primary/60">{t("heroH1b")}</span>.
                     </span>
                     <br />
-                    <span className="text-slate-900 underline underline-offset-4 decoration-2 decoration-primary/60">CaptionBoost</span>
-                    <span className="text-slate-900"> li </span>
-                    <span className="text-slate-900 underline underline-offset-4 decoration-2 decoration-primary/60">perfeziona</span>
+                    <span className="text-slate-900 underline underline-offset-4 decoration-2 decoration-primary/60">{t("heroH1c")}</span>
+                    <span className="text-slate-900"> </span>
+                    <span className="text-slate-900 underline underline-offset-4 decoration-2 decoration-primary/60">{t("heroH1d")}</span>
                     <span className="text-slate-900">.</span>
                   </motion.h1>
 
@@ -340,7 +340,7 @@ export default function Home() {
                     className="mt-6 text-xl sm:text-2xl text-slate-800 font-semibold"
                   >
                     <span className="text-slate-900">
-                      Genera <span className="text-slate-900 underline underline-offset-4 decoration-2 decoration-primary/60">sottotitoli AI accurati</span> per qualsiasi video.
+                      {t("heroSub2")}
                     </span>
                   </motion.p>
 
@@ -369,7 +369,7 @@ export default function Home() {
                       className="inline-flex items-center justify-center gap-2.5 px-8 py-4 rounded-xl bg-white text-slate-700 border-2 border-slate-300 hover:border-slate-400 hover:bg-slate-50 font-semibold shadow-sm text-sm sm:text-base transition-all"
                     >
                       <FontAwesomeIcon icon={faChrome} className="w-5 h-5 flex-shrink-0" />
-                      <span>Aggiungi a Chrome</span>
+                      <span>{t("addToChrome")}</span>
                     </a>
                   </motion.div>
 
@@ -400,7 +400,7 @@ export default function Home() {
               >
                 <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-primary-50 border border-primary-200/50 rounded-full text-xs font-medium text-primary mb-3">
                   <Sparkles className="w-3.5 h-3.5" />
-                  <span>Funzionalità</span>
+                  <span>{t("featuresBadge")}</span>
                 </div>
                 <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">
                   {t("whyChoose")}
@@ -485,7 +485,7 @@ export default function Home() {
                   <span className="text-lg font-bold text-slate-900">CaptionBoost</span>
                 </Link>
                 <p className="text-sm text-slate-500 leading-relaxed mb-6">
-                  AI-powered subtitle translation for YouTube. Break language barriers and reach a global audience.
+                  {t("footerTagline")}
                 </p>
                 <div className="flex items-center gap-3">
                   <a href="mailto:support@captionboost.it" className="w-9 h-9 rounded-full bg-slate-100 hover:bg-primary hover:text-white flex items-center justify-center transition-colors text-slate-500" aria-label="Email">
@@ -502,7 +502,7 @@ export default function Home() {
                 <ul className="space-y-3 text-sm">
                   <li><Link href="/pricing" className="text-slate-500 hover:text-primary transition-colors">{t("pricing")}</Link></li>
                   <li><a href="#features" className="text-slate-500 hover:text-primary transition-colors">{t("features")}</a></li>
-                  <li><a href="#how-it-works" className="text-slate-500 hover:text-primary transition-colors">Come funziona</a></li>
+                  <li><a href="#how-it-works" className="text-slate-500 hover:text-primary transition-colors">{t("howItWorks")}</a></li>
                 </ul>
               </div>
 

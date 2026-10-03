@@ -59,7 +59,7 @@ function ResetPasswordForm() {
           className="inline-flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-primary transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
-          Torna alla home
+          Back to home
         </Link>
       </div>
 
@@ -136,7 +136,7 @@ function ResetPasswordForm() {
 
               <div>
                 <label htmlFor="resetConfirm" className="block text-sm font-medium text-slate-700 mb-1">
-                  Conferma nuova password
+                  Confirm new password
                 </label>
                 <input
                   id="resetConfirm"
@@ -158,10 +158,10 @@ function ResetPasswordForm() {
                 {loading ? (
                   <span className="inline-flex items-center gap-2">
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    Reimpostazione...
+                    Resetting...
                   </span>
                 ) : (
-                  "Reimposta password"
+                  "Reset password"
                 )}
               </button>
             </form>

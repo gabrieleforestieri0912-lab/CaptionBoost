@@ -2,11 +2,12 @@
 
 import { motion } from 'framer-motion'
 import { Play, Globe, Download, ArrowRight, type LucideIcon } from 'lucide-react'
+import { useLanguage } from '@/contexts/LanguageContext'
 
 interface Step {
   icon: LucideIcon
-  title: string
-  desc: string
+  titleKey: string
+  descKey: string
 }
 
 const fadeIn = {
@@ -24,24 +25,13 @@ const staggerContainer = {
 }
 
 const steps: Step[] = [
-  {
-    icon: Download,
-    title: 'Installa',
-    desc: 'Aggiungi CaptionBoost dal Chrome Web Store in un clic.',
-  },
-  {
-    icon: Play,
-    title: 'Riproduci e traduci',
-    desc: 'Apri qualsiasi video YouTube: l\'AI traduce i sottotitoli in tempo reale.',
-  },
-  {
-    icon: Globe,
-    title: 'Scegli e gestisci',
-    desc: 'Seleziona la lingua target, salva i sottotitoli e gestiscili dal tuo account.',
-  },
+  { icon: Download, titleKey: 'step1Title', descKey: 'step1Desc' },
+  { icon: Play, titleKey: 'step2Title', descKey: 'step2Desc' },
+  { icon: Globe, titleKey: 'step3Title', descKey: 'step3Desc' },
 ]
 
 export default function HowItWorks() {
+  const { t } = useLanguage()
   return (
     <section id="how-it-works" className="py-14 sm:py-16 bg-white">
 
@@ -54,14 +44,13 @@ export default function HowItWorks() {
         >
           <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-primary/10 border border-primary/15 rounded-full text-xs font-medium text-primary mb-3">
             <Play className="w-3.5 h-3.5" />
-            <span>Come funziona</span>
+            <span>{t("howItWorksBadge")}</span>
           </div>
           <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
-            Inizia in 3 semplici passi
+            {t("howItWorksTitle")}
           </h2>
           <p className="text-slate-500 mt-2 max-w-2xl mx-auto text-sm">
-            CaptionBoost si integra con YouTube, elabora l&apos;audio con AI e genera
-            sottotitoli accurati in tempo reale.
+            {t("howItWorksDesc")}
           </p>
         </motion.div>
 
@@ -107,12 +96,12 @@ export default function HowItWorks() {
                       </div>
                       <div className="min-w-0">
                         <h4 className="font-bold text-lg text-slate-900">
-                          {s.title}
+                          {t(s.titleKey)}
                         </h4>
                       </div>
                     </div>
 
-                    <p className="text-slate-500 leading-relaxed text-sm flex-1">{s.desc}</p>
+                    <p className="text-slate-500 leading-relaxed text-sm flex-1">{t(s.descKey)}</p>
 
                     <div className="mt-5 relative">
                       <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden">

@@ -50,7 +50,7 @@ export default function ForgotPasswordPage() {
           className="inline-flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-primary transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
-          Torna alla home
+          Back to home
         </Link>
       </div>
 

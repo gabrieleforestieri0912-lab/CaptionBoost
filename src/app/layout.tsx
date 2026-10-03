@@ -20,7 +20,7 @@ export const metadata: Metadata = {
     template: "%s | CaptionBoost",
   },
   description:
-    "Scopri video YouTube senza barriere linguistiche con sottotitoli AI generati in tempo reale. Traduzione istantanea, aspetto personalizzabile, privacy-first.",
+    "Discover YouTube videos without language barriers with AI-generated subtitles in real time. Instant translation, customizable look, privacy-first.",
   keywords: [
     "YouTube",
     "subtitles",
@@ -46,7 +46,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "CaptionBoost - AI YouTube Subtitles",
     description:
-      "Scopri video YouTube senza barriere linguistiche con sottotitoli AI generati in tempo reale.",
+      "Discover YouTube videos without language barriers with AI-generated subtitles in real time.",
     url: "https://captionboost.vercel.app",
     siteName: "CaptionBoost",
     type: "website",
@@ -63,7 +63,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "CaptionBoost - AI YouTube Subtitles",
     description:
-      "Scopri video YouTube senza barriere linguistiche con sottotitoli AI generati in tempo reale.",
+      "Discover YouTube videos without language barriers with AI-generated subtitles in real time.",
     images: ["/captionboost-og.png"],
   },
   metadataBase: new URL("https://captionboost.vercel.app"),
@@ -72,7 +72,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html
-      lang="it"
+      lang="en"
       data-scroll-behavior="smooth"
       className={`${jetbrainsMono.variable} h-full antialiased`}
     >

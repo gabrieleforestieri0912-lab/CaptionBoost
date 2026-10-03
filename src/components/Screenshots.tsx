@@ -2,8 +2,10 @@
 
 import Image from 'next/image'
 import { motion } from 'framer-motion'
+import { useLanguage } from '@/contexts/LanguageContext'
 
 export default function Screenshots() {
+  const { t } = useLanguage()
   const imgs = ['/screens/shot1.png', '/screens/shot1.png', '/screens/shot1.png']
 
   return (
@@ -16,11 +18,10 @@ export default function Screenshots() {
           className="text-center mb-10"
         >
           <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">
-            Vedi l&apos;app in azione
+            {t("screenshotsTitle")}
           </h2>
           <p className="text-slate-500 mt-2 text-sm max-w-2xl mx-auto">
-            Screenshot reali del flusso di lavoro: cattura, traduci ed esporta.
-            Progettato per velocità e facilità d&apos;uso.
+            {t("screenshotsDesc")}
           </p>
         </motion.div>
 

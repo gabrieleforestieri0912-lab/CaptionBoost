@@ -101,7 +101,7 @@ export default function SettingsPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Unable to save profile");
-      setMessage("Profilo aggiornato con successo.");
+      setMessage(t("profileUpdated"));
     } catch (err) {
       setError((err as Error).message || "Unable to save profile");
     } finally {
@@ -115,11 +115,11 @@ export default function SettingsPage() {
     setError("");
 
     if (passwordForm.newPassword.length < 8) {
-      setError("La nuova password deve avere almeno 8 caratteri.");
+      setError("The new password must be at least 8 characters.");
       return;
     }
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      setError("Le password non corrispondono.");
+      setError(t("passwordsNoMatch"));
       return;
     }
 
@@ -171,7 +171,7 @@ export default function SettingsPage() {
       <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="w-8 h-8 text-primary animate-spin" />
-          <p className="text-slate-500 font-medium">Caricamento impostazioni...</p>
+          <p className="text-slate-500 font-medium">{t("loadingSettings")}</p>
         </div>
       </div>
     );
@@ -186,7 +186,7 @@ export default function SettingsPage() {
             className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-primary transition-colors mb-3"
           >
             <ArrowLeft className="w-4 h-4" />
-            Torna alla home
+            Back to home
           </Link>
           <h1 className="text-3xl sm:text-4xl font-bold text-slate-900 tracking-tight">
             Impostazioni
@@ -219,14 +219,14 @@ export default function SettingsPage() {
               <User className="w-5 h-5 text-primary" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-slate-900">Profilo</h2>
+              <h2 className="text-xl font-bold text-slate-900">{t("profile")}</h2>
               <p className="text-sm text-slate-500">Modifica il tuo nome pubblico</p>
             </div>
           </div>
           <form onSubmit={handleProfileSave} className="space-y-5">
             <div>
               <label htmlFor="name" className="block text-sm font-medium text-slate-700 mb-1.5">
-                Nome
+                {t("name")}
               </label>
               <input
                 id="name"
@@ -238,7 +238,7 @@ export default function SettingsPage() {
             </div>
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-1.5">
-                Email
+                {t("email")}
               </label>
               <input
                 id="email"
@@ -258,7 +258,7 @@ export default function SettingsPage() {
               ) : (
                 <Save className="w-4 h-4" />
               )}
-              {profileSaving ? "Salvataggio..." : "Salva profilo"}
+              {profileSaving ? t("saving") : t("saveProfile")}
             </button>
           </form>
         </div>
@@ -269,8 +269,8 @@ export default function SettingsPage() {
               <Globe className="w-5 h-5 text-primary" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-slate-900">Lingua</h2>
-              <p className="text-sm text-slate-500">Scegli la lingua dell&apos;interfaccia</p>
+              <h2 className="text-xl font-bold text-slate-900">{t("languageTitle")}</h2>
+              <p className="text-sm text-slate-500">{t("languageDesc2")}</p>
             </div>
           </div>
           <div className="flex items-center gap-4">
@@ -337,7 +337,7 @@ export default function SettingsPage() {
               </div>
               <div>
                 <label htmlFor="confirmPassword" className="block text-sm font-medium text-slate-700 mb-1.5">
-                  Conferma nuova password
+                  {t("confirmNewPassword")}
                 </label>
                 <input
                   id="confirmPassword"
@@ -402,7 +402,7 @@ export default function SettingsPage() {
                 >
                   <option value="general">Suggerimento generale</option>
                   <option value="bug">Segnalazione bug</option>
-                  <option value="feature">Richiesta funzionalità</option>
+                  <option value="feature">{t("featureRequest")}</option>
                   <option value="translation">Problema di traduzione</option>
                 </select>
               </div>
@@ -464,7 +464,7 @@ export default function SettingsPage() {
                 ) : (
                   <Send className="w-4 h-4" />
                 )}
-                {feedbackSaving ? "Invio in corso..." : "Invia feedback"}
+                {feedbackSaving ? t("sending") : t("sendFeedback")}
               </button>
             </form>
           )}

@@ -21,12 +21,12 @@ export const PLANS: Record<string, Plan> = {
     id: 'pro',
     name: 'Starter',
     description:
-      'Perfetto per creator e traduttori che pubblicano regolarmente.',
-    price: '9.99',
+      'Perfect for creators and translators who publish regularly.',
+    price: '4.99',
     interval: 'month',
     stripePriceId: 'price_pro_monthly_usd',
     stripePriceAnnualId: 'price_pro_annual_usd',
-    cta: 'Scegli Starter',
+    cta: 'Choose Starter',
     suggested: false,
     features: [
       'Unlimited translations',
@@ -42,14 +42,14 @@ export const PLANS: Record<string, Plan> = {
     id: 'team',
     name: 'Pro',
     description:
-      'Per agenzie e aziende con spazi di lavoro condivisi.',
-    price: '24.99',
+      'For agencies and companies with shared workspaces.',
+    price: '9.99',
     interval: 'month',
     stripePriceId: 'price_team_monthly_usd',
     stripePriceAnnualId: 'price_team_annual_usd',
-    cta: 'Scegli Pro',
+    cta: 'Choose Pro',
     suggested: true,
-    badge: 'Più popolare',
+    badge: 'Most popular',
     features: [
       'Everything included from Starter',
       '5 users included (add more at $4/month)',
@@ -66,6 +66,34 @@ export const PLANS_ORDERED: Plan[] = [PLANS.pro, PLANS.team]
 
 export function getPlanById(planId: string): Plan {
   return PLANS[planId] || PLANS.free
+}
+
+/** Override italiano per i piani (base in inglese). */
+const PLANS_IT: Record<string, Partial<Plan>> = {
+  free: {
+    description: 'Inizia a tradurre con le funzioni base.',
+    cta: 'Inizia gratis',
+  },
+  pro: {
+    description: 'Perfetto per creator e traduttori che pubblicano regolarmente.',
+    cta: 'Scegli Starter',
+  },
+  team: {
+    description: 'Per agenzie e aziende con spazi di lavoro condivisi.',
+    cta: 'Scegli Pro',
+    badge: 'Più popolare',
+  },
+}
+
+/** Ritorna il piano localizzato: 'it' per l'Italia, inglese per tutti gli altri paesi. */
+export function getLocalizedPlan(planId: string, lang: string): Plan {
+  const base = getPlanById(planId)
+  if (lang !== 'it') return base
+  return { ...base, ...PLANS_IT[planId] }
+}
+
+export function getLocalizedPlans(lang: string): Plan[] {
+  return PLANS_ORDERED.map((p) => getLocalizedPlan(p.id, lang))
 }
 
 export function calculateAnnualPrice(

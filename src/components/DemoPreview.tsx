@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence, type Variants } from 'framer-motion'
 import { Sparkles, Globe, Languages, ChevronRight } from 'lucide-react'
 import { DEMO_LANGS, type DemoLang } from '@/lib/demo-subtitles'
+import { useLanguage } from '@/contexts/LanguageContext'
 
 // ─── Tipi minimi per YouTube IFrame Player API ───────────────────────────────
 
@@ -56,9 +57,10 @@ const originalIn: Variants = {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function DemoPreview() {
+  const { t } = useLanguage()
   const [activeLang, setActiveLang]     = useState<DemoLang>(DEMO_LANGS[0])
   const [position, setPosition]         = useState(0)
-  const [isPlaying, setIsPlaying]       = useState(false)
+  const [isPlaying, setIsPlaying]       = useState(true)
   const [ytReady, setYtReady]           = useState(false)
 
   const playerRef     = useRef<HTMLDivElement>(null)
@@ -71,8 +73,8 @@ export default function DemoPreview() {
   const first = segs[0]
   const last = segs[segs.length - 1]
   const currentSeg =
-    segs.find(s => position >= s.start && position < s.end) ??
-    (first && position < first.start ? first : last) ?? null
+    segs.find(s => position >= s.start - 0.05 && position < s.end) ??
+    (first && position < first.start + 0.05 ? first : (position < 0.1 ? first : last)) ?? null
 
   const totalDuration = activeLang.segments[activeLang.segments.length - 1]?.end ?? 60
 
@@ -153,11 +155,11 @@ export default function DemoPreview() {
     const iv = setInterval(() => {
       const p = ytPlayerRef.current
       if (!p) return
-      const t = p.getCurrentTime()
-      const dur = p.getDuration() || 0
-      // Se il video è terminato, riporta la posizione alla fine della trascrizione
-      setPosition(dur > 0 && t >= dur - 0.5 ? totalDuration : t)
-    }, 200)
+          const t = p.getCurrentTime()
+          const dur = p.getDuration() || 0
+          // Se il video è terminato, riporta la posizione alla fine della trascrizione
+          setPosition(dur > 0 && t >= dur - 0.5 ? totalDuration : t)
+        }, 100)
     return () => clearInterval(iv)
   }, [ytReady, totalDuration])
 
@@ -189,13 +191,13 @@ export default function DemoPreview() {
         >
           <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-primary-50 border border-primary-200/50 rounded-full text-xs font-semibold text-primary mb-4">
             <Sparkles className="w-3.5 h-3.5" />
-            <span>Demo interattiva</span>
+            <span>{t("demoBadge")}</span>
           </div>
           <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight text-slate-900">
-            Guarda CaptionBoost in azione
+            {t("demoTitle")}
           </h2>
           <p className="text-slate-500 mt-3 text-sm sm:text-base max-w-xl mx-auto leading-relaxed">
-            Scegli una lingua e premi play: i sottotitoli reali del video vengono tradotti in italiano dall&apos;AI, sincronizzati con la voce.
+            {t("demoDesc")}
           </p>
         </motion.div>
 
@@ -232,7 +234,7 @@ export default function DemoPreview() {
             <span className="font-medium text-slate-700">{activeLang.nativeName}</span>
             <ChevronRight className="w-4 h-4 text-slate-400" />
             <Languages className="w-4 h-4 text-emerald-500" />
-            <span className="font-medium text-emerald-700">Italiano</span>
+            <span className="font-medium text-emerald-700">{t("demoTarget")}</span>
             <span className="ml-2 px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold">AI</span>
           </div>
 
@@ -260,10 +262,10 @@ export default function DemoPreview() {
               {/* Subtitle overlay */}
               <div className="absolute bottom-0 left-0 right-0 px-4 sm:px-8 pb-16 sm:pb-20 pointer-events-none">
                 <div className="flex flex-col items-center gap-1.5">
-                  <AnimatePresence mode="wait">
-                    {isPlaying && currentSeg && (
+              <AnimatePresence mode="wait">
+                    {currentSeg && (
                       <motion.div
-                        key={`${activeLang.code}-${currentSeg.start}`}
+                        key={`${activeLang.code}-${currentSeg.start}-${currentSeg.end}`}
                         variants={subtitleIn}
                         initial="initial"
                         animate="animate"
@@ -303,7 +305,7 @@ export default function DemoPreview() {
 
           {/* Bottom note */}
           <p className="text-center text-xs text-slate-400 mt-5">
-            Demo con trascrizioni reali dei video e traduzione AI · La qualità nella versione reale è identica.
+            {t("demoNote")}
           </p>
         </motion.div>
       </div>

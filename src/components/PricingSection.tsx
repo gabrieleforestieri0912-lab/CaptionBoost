@@ -6,11 +6,13 @@ import { useAuth } from '@/components/AuthProvider'
 import { Check, Loader2, Zap, Star, Users, Sparkles } from 'lucide-react'
 import { motion } from 'framer-motion'
 import {
-  PLANS_ORDERED,
   getPlanById,
+  getLocalizedPlan,
+  getLocalizedPlans,
   calculateAnnualPrice,
   PRICING_CONFIG,
 } from '@/lib/plans'
+import { useLanguage } from '@/contexts/LanguageContext'
 
 export default function PricingSection({
   compact = false,
@@ -20,6 +22,7 @@ export default function PricingSection({
   checkoutStatus?: string
 }) {
   const { status } = useAuth()
+  const { t, language } = useLanguage()
   const router = useRouter()
   const [loadingPlanId, setLoadingPlanId] = useState<string | null>(null)
   const [error, setError] = useState('')
@@ -51,7 +54,7 @@ export default function PricingSection({
 
     try {
       setLoadingPlanId(planId)
-      const plan = getPlanById(planId)
+      const plan = getLocalizedPlan(planId, language)
       const priceInfo =
         plan.price > '0'
           ? calculateAnnualPrice(parseFloat(plan.price))
@@ -105,8 +108,8 @@ export default function PricingSection({
     }
   }
 
-  const freePlan = getPlanById('free')
-  const plans = compact ? [getPlanById('pro')] : [freePlan, ...PLANS_ORDERED]
+  const freePlan = getLocalizedPlan('free', language)
+  const plans = compact ? [getLocalizedPlan('pro', language)] : [freePlan, ...getLocalizedPlans(language)]
 
   return (
     <section id="pricing" className={compact ? 'py-8' : 'py-14 sm:py-16'}>
@@ -121,14 +124,13 @@ export default function PricingSection({
             >
               <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-primary-50 border border-primary-200/50 rounded-full text-xs font-medium text-primary mb-3">
                 <Sparkles className="w-3.5 h-3.5" />
-                <span>Piani</span>
+                <span>{t("pricingBadge")}</span>
               </div>
               <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">
-                Piani di abbonamento
+                {t("pricingTitle")}
               </h2>
               <p className="text-slate-500 mt-2 text-sm max-w-2xl mx-auto">
-                Scegli il piano adatto al tuo volume di traduzione. Cambia
-                piano in qualsiasi momento.
+                {t("pricingDesc")}
               </p>
             </motion.div>
 
@@ -136,13 +138,13 @@ export default function PricingSection({
               <span
                 className={`text-sm font-semibold transition-colors ${!isAnnual ? 'text-primary' : 'text-slate-400'}`}
               >
-                Mensile
+                {t("monthly")}
               </span>
               <button
                 onClick={toggleBilling}
                 className="relative w-14 h-8 bg-slate-200 rounded-full transition-all focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 hover:bg-slate-300"
                 style={{ backgroundColor: isAnnual ? '#4C94FF' : '' }}
-                aria-label="Passa a fatturazione annuale"
+                aria-label="Switch to annual billing"
               >
                 <span
                   className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full shadow-lg transform transition-transform duration-200 ${
@@ -155,7 +157,7 @@ export default function PricingSection({
                   isAnnual ? 'text-primary' : 'text-slate-400'
                 } flex items-center gap-2`}
               >
-                Annuale
+                {t("annual")}
                 <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-primary-100 text-primary">
                   -20%
                 </span>
@@ -168,7 +170,7 @@ export default function PricingSection({
             (?checkout=success su /), non più qui: niente banner di successo. */}
         {checkoutStatus === 'cancel' && (
           <div className="mb-8 p-4 bg-amber-50 border border-amber-200 text-amber-700 rounded-xl text-sm text-center font-medium shadow-sm">
-            Checkout annullato. Puoi riprovare quando vuoi.
+            {t("checkoutCancel")}
           </div>
         )}
         {error && (
@@ -235,16 +237,16 @@ export default function PricingSection({
                     </span>
                   </div>
                   <div className="text-xs font-medium text-slate-400 mt-1">
-                    per {plan.interval}
+                    {t("per")} {plan.interval}
                   </div>
                   {isAnnual && plan.price > '0' && (
                     <div className="mt-2 text-xs text-primary font-bold bg-primary-50 py-1 px-2.5 rounded-full inline-block">
-                      Risparmi {priceInfo.savings.toFixed(2)}€ all&apos;anno
+                      {t("saveAnnual")} {priceInfo.savings.toFixed(2)}€ {t("perYear")}
                     </div>
                   )}
                   {plan.id === 'free' && (
                     <div className="mt-2 text-xs text-slate-400 font-medium">
-                      Gratuito per sempre
+                      {t("freeForever")}
                     </div>
                   )}
                 </div>
@@ -285,7 +287,7 @@ export default function PricingSection({
                 {isAnnual && plan.price > '0' && (
                   <div className="mt-3 text-center">
                     <span className="text-xs text-slate-400 font-medium">
-                      Fatturato annualmente
+                      {t("billedAnnually")}
                     </span>
                   </div>
                 )}
@@ -303,10 +305,10 @@ export default function PricingSection({
                 </div>
                 <div>
                   <h4 className="font-bold text-slate-900 text-sm">
-                    Garanzia 14 Giorni
+                    {t("guarantee")}
                   </h4>
                   <p className="text-xs text-slate-500">
-                    Prova senza rischi. Cancella in qualsiasi momento.
+                    {t("guaranteeDesc")}
                   </p>
                 </div>
               </div>
@@ -316,10 +318,10 @@ export default function PricingSection({
                 </div>
                 <div>
                   <h4 className="font-bold text-slate-900 text-sm">
-                    Sconto Team
+                    {t("teamDiscount")}
                   </h4>
                   <p className="text-xs text-slate-500">
-                    Contattaci per piani personalizzati e volumi elevati.
+                    {t("teamDiscountDesc")}
                   </p>
                 </div>
               </div>

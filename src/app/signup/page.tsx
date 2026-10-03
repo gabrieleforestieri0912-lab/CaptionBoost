@@ -81,7 +81,7 @@ export default function SignupPage() {
           className="inline-flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-primary transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
-          Torna alla home
+          Back to home
         </Link>
       </div>
 
@@ -183,7 +183,7 @@ export default function SignupPage() {
                 className="mt-4 w-full inline-flex items-center justify-center gap-3 px-4 py-3 border border-slate-200 rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-all font-medium text-slate-700 text-sm sm:text-base"
               >
                 <Image src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="" width={20} height={20} className="w-5 h-5" unoptimized />
-                Registrati con Google
+                Sign up with Google
               </button>
             </div>
 

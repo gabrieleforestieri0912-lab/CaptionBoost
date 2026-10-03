@@ -10,13 +10,13 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
       <header className="border-b border-primary-100 bg-white/80 backdrop-blur">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
           <h1 className="text-2xl font-bold bg-linear-to-r from-primary to-primary-100 bg-clip-text text-transparent">
-            CaptionBoost - Piani
+            CaptionBoost - Plans
           </h1>
           <Link
             href="/"
             className="px-4 py-2 text-primary hover:bg-primary-50 rounded-lg font-medium transition-colors"
           >
-            Torna alla home
+            Back to home
           </Link>
         </div>
       </header>

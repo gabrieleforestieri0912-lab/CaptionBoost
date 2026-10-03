@@ -3,36 +3,18 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Sparkles } from 'lucide-react'
-
-interface FAQItem {
-  q: string
-  a: string
-}
+import { useLanguage } from '@/contexts/LanguageContext'
 
 export default function FAQ() {
+  const { t } = useLanguage()
   const [openIndex, setOpenIndex] = useState<number | null>(null)
 
-  const faqs: FAQItem[] = [
-    {
-      q: 'Quanto costa CaptionBoost?',
-      a: 'Offriamo un piano gratuito e piani a pagamento con fatturazione mensile o annuale. Consulta la sezione Prezzi per i dettagli.',
-    },
-    {
-      q: 'Posso usare CaptionBoost offline?',
-      a: 'CaptionBoost è un servizio cloud e richiede una connessione internet per funzionare.',
-    },
-    {
-      q: 'Quali formati di esportazione sono supportati?',
-      a: 'SRT, VTT, ASS, SBV e JSON per integrazioni personalizzate.',
-    },
-    {
-      q: 'Come proteggere la mia privacy?',
-      a: "L'elaborazione locale è disponibile; nel cloud minimizziamo i log e seguiamo le migliori pratiche di sicurezza.",
-    },
-    {
-      q: 'I sottotitoli vengono salvati automaticamente?',
-      a: "Sì! Ogni volta che abiliti i sottotitoli su un video YouTube, vengono salvati automaticamente nel tuo account nella sezione 'I miei sottotitoli'.",
-    },
+  const faqs = [
+    { q: t('faq1q'), a: t('faq1a') },
+    { q: t('faq2q'), a: t('faq2a') },
+    { q: t('faq3q'), a: t('faq3a') },
+    { q: t('faq4q'), a: t('faq4a') },
+    { q: t('faq5q'), a: t('faq5a') },
   ]
 
   const toggle = (i: number) => setOpenIndex(openIndex === i ? null : i)
@@ -51,10 +33,10 @@ export default function FAQ() {
             <span>FAQ</span>
           </div>
           <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">
-            Domande frequenti
+            {t('faqTitle')}
           </h2>
           <p className="text-slate-500 mt-2 text-sm">
-            Risposte alle domande pi&ugrave; comuni su piani, privacy e utilizzo.
+            {t('faqDesc')}
           </p>
         </motion.div>
         <div className="space-y-3">

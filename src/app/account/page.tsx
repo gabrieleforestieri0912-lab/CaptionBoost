@@ -164,7 +164,7 @@ function TranslationQuotaCard({ plan }: { plan: PlanInfo }) {
 export default function AccountPage() {
   const router = useRouter();
   const { status } = useAuth();
-  const { language, changeLanguage } = useLanguage();
+  const { language, changeLanguage, t } = useLanguage();
   const [subtitles, setSubtitles] = useState<Subtitle[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -222,7 +222,7 @@ export default function AccountPage() {
   }, [status, router, loadSubtitles, loadPlan]);
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Eliminare questo sottotitolo?")) return;
+    if (!confirm(t("confirmDelete"))) return;
     setDeletingId(id);
     try {
       const res = await fetch(`/api/account/subtitles?id=${id}`, { method: "DELETE" });
@@ -266,7 +266,7 @@ export default function AccountPage() {
       <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="w-8 h-8 text-primary animate-spin" />
-          <p className="text-slate-500 font-medium">Caricamento sottotitoli...</p>
+          <p className="text-slate-500 font-medium">{t("loadingSubtitles")}</p>
         </div>
       </div>
     );
@@ -283,7 +283,7 @@ export default function AccountPage() {
                 className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-primary transition-colors"
               >
                 <ArrowLeft className="w-4 h-4" />
-                Torna alla home
+                {t("backHome")}
               </Link>
               <div className="relative" ref={langMenuRef}>
                 <button
@@ -319,19 +319,19 @@ export default function AccountPage() {
               </div>
             </div>
             <h1 className="text-3xl sm:text-4xl font-bold text-slate-900 tracking-tight">
-              I miei sottotitoli
+              {t("mySubtitles")}
             </h1>
             <p className="text-slate-500 mt-1">
-              {subtitles.length} video salvati
+              {subtitles.length} {t("videosSaved")}
               {subtitles.length > 0 &&
-                ` — ${subtitles.reduce((acc: number, s: Subtitle) => acc + s.lines.length, 0)} righe totali`}
+                ` — ${subtitles.reduce((acc: number, s: Subtitle) => acc + s.lines.length, 0)} ${t("linesTotal")}`}
             </p>
           </div>
           <div className="relative w-full sm:w-72">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input
               type="text"
-              placeholder="Cerca per titolo o lingua..."
+              placeholder={t("searchSubtitles")}
               value={searchQuery}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
@@ -358,12 +358,10 @@ export default function AccountPage() {
               <Subtitles className="w-10 h-10 text-primary" />
             </div>
             <h2 className="text-2xl font-bold text-slate-900 mb-2">
-              {searchQuery ? "Nessun risultato" : "Nessun sottotitolo salvato"}
+              {searchQuery ? t("noResults") : t("noSubtitles")}
             </h2>
             <p className="text-slate-500 mb-8 max-w-md mx-auto">
-              {searchQuery
-                ? "Prova a modificare la ricerca."
-                : "Installa l'estensione e abilita i sottotitoli su un video YouTube per vederli apparire qui."}
+              {searchQuery ? t("noResults") : t("noSubtitlesDesc")}
             </p>
             {!searchQuery && (
               <a
@@ -373,7 +371,7 @@ export default function AccountPage() {
                 className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-primary hover:bg-primary text-white font-bold transition-all shadow-lg shadow-primary/25"
               >
                 <Download className="w-4 h-4" />
-                Installa l&apos;estensione
+                {t("installExtension")}
               </a>
             )}
           </motion.div>
@@ -430,7 +428,7 @@ export default function AccountPage() {
                           <button
                             onClick={() => handleExport(sub)}
                             className="p-2 rounded-lg text-slate-400 hover:text-primary hover:bg-primary-50 transition-all"
-                            title="Esporta SRT"
+                            title={t("exportSrt")}
                           >
                             <Download className="w-4 h-4" />
                           </button>
@@ -449,7 +447,7 @@ export default function AccountPage() {
                             onClick={() => handleDelete(sub.id)}
                             disabled={deletingId === sub.id}
                             className="p-2 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 transition-all disabled:opacity-50"
-                            title="Elimina"
+                            title={t("deleteSubtitle")}
                           >
                             {deletingId === sub.id ? (
                               <Loader2 className="w-4 h-4 animate-spin" />
