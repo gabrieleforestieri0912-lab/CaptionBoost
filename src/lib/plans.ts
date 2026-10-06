@@ -24,8 +24,6 @@ export const PLANS: Record<string, Plan> = {
       'Perfect for creators and translators who publish regularly.',
     price: '4.99',
     interval: 'month',
-    stripePriceId: 'price_pro_monthly_usd',
-    stripePriceAnnualId: 'price_pro_annual_usd',
     cta: 'Choose Starter',
     suggested: false,
     features: [
@@ -45,8 +43,6 @@ export const PLANS: Record<string, Plan> = {
       'For agencies and companies with shared workspaces.',
     price: '9.99',
     interval: 'month',
-    stripePriceId: 'price_team_monthly_usd',
-    stripePriceAnnualId: 'price_team_annual_usd',
     cta: 'Choose Pro',
     suggested: true,
     badge: 'Most popular',
@@ -137,8 +133,8 @@ export function calculateAnnualPrice(
 
 export const PRICING_CONFIG = {
   stripe: {
-    currency: 'USD',
-    currencySymbol: '$',
+    currency: 'EUR',
+    currencySymbol: '€',
     freePlanId: 'free',
   },
   limits: {

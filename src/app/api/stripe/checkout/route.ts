@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import Stripe from 'stripe'
-import { getPlanById, PRICING_CONFIG } from '@/lib/plans'
+import { PLANS, getPlanById, calculateAnnualPrice, PRICING_CONFIG } from '@/lib/plans'
 import { getAuthenticatedUser } from '@/lib/get-user'
 
 export async function POST(request: Request) {
@@ -18,43 +18,47 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { planId, price_data, isAnnual } = await request.json() as {
+    // NOTA: importo e validità prezzo sono calcolati qui sul server a partire
+    // dal piano: non si accettano mai unit_amount dal client (manomissione).
+    const { planId, isAnnual } = (await request.json()) as {
       planId: string
-      price_data?: { unit_amount?: number; currency?: string; product_data?: Record<string, unknown>; recurring?: Record<string, unknown> }
       isAnnual?: boolean
     }
-    const plan = getPlanById(planId)
-    if (!plan) {
+    const plan = PLANS[planId] || getPlanById(planId)
+    const monthlyPrice = parseFloat(plan?.price || '0')
+    if (!plan || !PLANS[planId] || planId === 'free' || !(monthlyPrice > 0)) {
       return NextResponse.json({ error: 'Invalid plan' }, { status: 400 })
     }
 
-    let lineItem: Record<string, unknown> | null = null
-    if (price_data && price_data.unit_amount !== undefined) {
-      lineItem = { price_data, quantity: 1 }
-    } else {
-      const annual = Boolean(isAnnual)
-      let candidate: string | null = null
-
-      if (annual && plan.stripePriceAnnualId)
-        candidate = plan.stripePriceAnnualId
-      if (!candidate && plan.stripePriceId) candidate = plan.stripePriceId
-
-      if (candidate && String(candidate).startsWith('price_')) {
-        lineItem = { price: candidate, quantity: 1 }
-      } else {
-        const envKey = `STRIPE_PRICE_${String(plan.id).toUpperCase()}${annual ? '_ANNUAL' : ''}`
-        const envVal = process.env[envKey]
-        if (!envVal) {
-          return NextResponse.json(
-            {
-              error: `Missing Stripe price configuration for plan ${plan.id} (tried ${envKey})`,
-            },
-            { status: 500 }
-          )
-        }
-        lineItem = { price: envVal, quantity: 1 }
-      }
+    const annual = Boolean(isAnnual)
+    const priceInfo = calculateAnnualPrice(monthlyPrice)
+    const displayPrice = annual ? priceInfo.annual : monthlyPrice
+    const unitAmount = Math.round(displayPrice * 100)
+    if (!(unitAmount > 0)) {
+      return NextResponse.json({ error: 'Invalid plan price' }, { status: 400 })
     }
+    const interval = annual ? 'year' : 'month'
+    const currency = (PRICING_CONFIG?.stripe?.currency || 'EUR').toLowerCase()
+
+    // Override opzionale: se esistono Price catalogati su Stripe, usali.
+    // Env: STRIPE_PRICE_PRO, STRIPE_PRICE_PRO_ANNUAL, STRIPE_PRICE_TEAM, ...
+    const envKey = `STRIPE_PRICE_${plan.id.toUpperCase()}${annual ? '_ANNUAL' : ''}`
+    const envPriceId = process.env[envKey]
+    const lineItem: Record<string, unknown> =
+      envPriceId && envPriceId.startsWith('price_')
+        ? { price: envPriceId, quantity: 1 }
+        : {
+            price_data: {
+              currency,
+              product_data: {
+                name: `CaptionBoost ${plan.name}`,
+                description: plan.description,
+              },
+              unit_amount: unitAmount,
+              recurring: { interval },
+            },
+            quantity: 1,
+          }
 
     const origin =
       process.env.NEXT_PUBLIC_APP_URL ||
@@ -75,6 +79,15 @@ export async function POST(request: Request) {
         app: 'captionboost',
         planId,
         userId: user.id || '',
+      },
+      // Propaga i metadati alla Subscription: così il webhook può associare
+      // gli eventi customer.subscription.* all'utente anche ai rinnovi.
+      subscription_data: {
+        metadata: {
+          app: 'captionboost',
+          planId,
+          userId: user.id || '',
+        },
       },
       allow_promotion_codes: true,
     })

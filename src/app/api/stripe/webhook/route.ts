@@ -69,12 +69,31 @@ export async function POST(request: Request) {
 
       case 'customer.subscription.updated': {
         const subscription = event.data.object as Stripe.Subscription
-        const userId = subscription.metadata?.userId
+        const userId =
+          subscription.metadata?.userId ||
+          (subscription as { customer?: string }).customer?.toString()
+        const planId = subscription.metadata?.planId
 
-        if (userId && subscription.status !== 'active') {
-          await updateUser(userId, {
-            subscriptionStatus: subscription.status,
-          })
+        if (userId) {
+          if (subscription.status === 'active' && planId) {
+            const planLimits: Record<string, { maxVideos: number }> = {
+              free: { maxVideos: 10 },
+              starter: { maxVideos: 500 },
+              pro: { maxVideos: 999999 },
+              team: { maxVideos: 999999 },
+            }
+            const limits = planLimits[planId] || planLimits.free
+            await updateUser(userId, {
+              subscriptionPlan: planId,
+              planMaxVideos: limits.maxVideos,
+              subscriptionStatus: 'active',
+              subscriptionId: subscription.id,
+            })
+          } else if (subscription.status !== 'active') {
+            await updateUser(userId, {
+              subscriptionStatus: subscription.status,
+            })
+          }
         }
         break
       }

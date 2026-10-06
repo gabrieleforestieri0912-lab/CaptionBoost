@@ -6,11 +6,9 @@ import { useAuth } from '@/components/AuthProvider'
 import { Check, Loader2, Zap, Star, Users, Sparkles } from 'lucide-react'
 import { motion } from 'framer-motion'
 import {
-  getPlanById,
   getLocalizedPlan,
   getLocalizedPlans,
   calculateAnnualPrice,
-  PRICING_CONFIG,
 } from '@/lib/plans'
 import { useLanguage } from '@/contexts/LanguageContext'
 
@@ -54,45 +52,12 @@ export default function PricingSection({
 
     try {
       setLoadingPlanId(planId)
-      const plan = getLocalizedPlan(planId, language)
-      const priceInfo =
-        plan.price > '0'
-          ? calculateAnnualPrice(parseFloat(plan.price))
-          : {
-              monthly: 0,
-              annual: 0,
-              monthlyEquivalent: 0,
-              savings: 0,
-              savingsPercent: 20,
-            }
-      const displayPrice = isAnnual
-        ? priceInfo.annual
-        : parseFloat(plan.price)
-      const unitAmount = Math.round(displayPrice * 100)
-      const interval = isAnnual
-        ? 'year'
-        : plan.interval === 'mese'
-          ? 'month'
-          : plan.interval
-      const currency = PRICING_CONFIG?.stripe?.currency || 'EUR'
-
-      const price_data: Record<string, unknown> = {
-        currency,
-        product_data: {
-          name: plan.name,
-          description: plan.description,
-        },
-        unit_amount: unitAmount,
-      }
-
-      if (plan.price !== '0') {
-        price_data.recurring = { interval }
-      }
-
+      // Il prezzo è calcolato sul server dal piano: il client invia solo
+      // planId e billing, mai importi (anti-manomissione).
       const response = await fetch('/api/stripe/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ planId, isAnnual, price_data }),
+        body: JSON.stringify({ planId, isAnnual }),
       })
       const data = await response.json()
       if (!response.ok) {
