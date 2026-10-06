@@ -166,7 +166,7 @@ export default function SubtitleCustomizer() {
 
       {/* Stili originali / tradotti */}
       <div className="grid sm:grid-cols-2 gap-4 mb-5">
-        <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-4">
+        <div className="rounded-xl border border-slate-100 bg-stone-50 p-4">
           <p className="text-sm font-bold text-slate-900 mb-3">{t('originalCaptions')}</p>
           <div className="space-y-3">
             <Field label={t('sizeLabel')}>
@@ -201,7 +201,7 @@ export default function SubtitleCustomizer() {
             </Field>
           </div>
         </div>
-        <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-4">
+        <div className="rounded-xl border border-slate-100 bg-stone-50 p-4">
           <p className="text-sm font-bold text-slate-900 mb-3">{t('translatedCaptions')}</p>
           <div className="space-y-3">
             <Field label={t('sizeLabel')}>
@@ -239,7 +239,7 @@ export default function SubtitleCustomizer() {
       </div>
 
       {/* Riquadro */}
-      <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-4 mb-5">
+      <div className="rounded-xl border border-slate-100 bg-stone-50 p-4 mb-5">
         <p className="text-sm font-bold text-slate-900 mb-3">{t('captionBox')}</p>
         <div className="grid sm:grid-cols-2 gap-4">
           <Field label={t('positionLabel')}>

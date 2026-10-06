@@ -477,7 +477,7 @@ export default function AccountPage() {
                       animate={{ opacity: 1, height: "auto" }}
                       className="mt-4 pt-4 border-t border-slate-50"
                     >
-                      <div className="bg-slate-50 rounded-xl p-4 max-h-80 overflow-y-auto">
+                      <div className="bg-stone-50 rounded-xl p-4 max-h-80 overflow-y-auto">
                         {sub.lines.map((line, li) => (
                           <div
                             key={li}

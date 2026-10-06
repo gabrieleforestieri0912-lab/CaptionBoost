@@ -9,7 +9,7 @@ export default function Screenshots() {
   const imgs = ['/screens/shot1.png', '/screens/shot1.png', '/screens/shot1.png']
 
   return (
-    <section className="py-14 sm:py-16 bg-slate-50/30">
+    <section className="py-14 sm:py-16 bg-stone-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}

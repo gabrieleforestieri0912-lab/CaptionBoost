@@ -177,7 +177,7 @@ export default function DemoPreview() {
     <section className="relative py-16 sm:py-24 bg-white overflow-hidden">
       {/* Subtle background texture */}
       <div className="absolute inset-0 pointer-events-none"
-        style={{ backgroundImage: 'radial-gradient(circle at 30% 20%, hsl(210 80% 97%) 0%, transparent 60%), radial-gradient(circle at 70% 80%, hsl(210 80% 97%) 0%, transparent 50%)' }} />
+        style={{ backgroundImage: 'radial-gradient(circle at 30% 20%, hsl(30 25% 96%) 0%, transparent 60%), radial-gradient(circle at 70% 80%, hsl(30 25% 96%) 0%, transparent 50%)' }} />
 
       <div className="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
 

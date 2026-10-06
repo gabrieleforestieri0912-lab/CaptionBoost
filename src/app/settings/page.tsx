@@ -318,7 +318,7 @@ export default function SettingsPage() {
             </div>
           </div>
           {!profile.hasPassword ? (
-            <p className="text-sm text-slate-500 bg-slate-50 rounded-xl p-4">
+            <p className="text-sm text-slate-500 bg-stone-50 rounded-xl p-4">
               {t("socialAccountNote")}
             </p>
           ) : (

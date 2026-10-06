@@ -7,7 +7,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 export default function WelcomePage() {
   const { t } = useLanguage();
   return (
-    <div className="min-h-screen bg-linear-to-br from-primary-50 via-white to-primary-50 flex items-center justify-center px-4">
+    <div className="min-h-screen bg-gradient-to-b from-stone-50 to-white flex items-center justify-center px-4">
       <div className="max-w-md w-full text-center">
         <div className="mb-6">
           <CheckCircle className="w-16 h-16 text-green-500 mx-auto" />
