@@ -4,6 +4,8 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 import Link from "next/link";
+import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
 import Image from "next/image";
 import { motion } from "framer-motion";
 import {
@@ -13,7 +15,6 @@ import {
   Clock,
   Globe,
   Video,
-  ArrowLeft,
   Search,
   Loader2,
   Download,
@@ -264,28 +265,26 @@ export default function AccountPage() {
 
   if (status === "loading" || (status === "authenticated" && loading)) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <Loader2 className="w-8 h-8 text-primary animate-spin" />
-          <p className="text-slate-500 font-medium">{t("loadingSubtitles")}</p>
+      <div className="min-h-screen bg-white">
+        <Navbar />
+        <div className="flex items-center justify-center pt-32 pb-20">
+          <div className="flex flex-col items-center gap-3">
+            <Loader2 className="w-8 h-8 text-primary animate-spin" />
+            <p className="text-slate-500 font-medium">{t("loadingSubtitles")}</p>
+          </div>
         </div>
+        <Footer />
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-white">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+      <Navbar />
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 sm:pt-28 pb-8 sm:pb-12">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
           <div>
             <div className="flex items-center gap-3 mb-3">
-              <Link
-                href="/"
-                className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-primary transition-colors"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                {t("backHome")}
-              </Link>
               <div className="relative" ref={langMenuRef}>
                 <button
                   onClick={() => setShowLangMenu(!showLangMenu)}
@@ -498,6 +497,7 @@ export default function AccountPage() {
           </div>
         )}
       </div>
+      <Footer />
     </div>
   );
 }

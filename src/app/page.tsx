@@ -488,7 +488,7 @@ export default function Home() {
                   {t("footerTagline")}
                 </p>
                 <div className="flex items-center gap-3">
-                  <a href="mailto:support@captionboost.it" className="w-9 h-9 rounded-full bg-slate-100 hover:bg-primary hover:text-white flex items-center justify-center transition-colors text-slate-500" aria-label="Email">
+                  <a href="mailto:gabriele.forestieri0912@gmail.com" className="w-9 h-9 rounded-full bg-slate-100 hover:bg-primary hover:text-white flex items-center justify-center transition-colors text-slate-500" aria-label="Email">
                     <Mail className="w-4 h-4" />
                   </a>
                   <a href="https://github.com/captionboost" target="_blank" rel="noopener noreferrer" className="w-9 h-9 rounded-full bg-slate-100 hover:bg-primary hover:text-white flex items-center justify-center transition-colors text-slate-500" aria-label="GitHub">
@@ -509,7 +509,7 @@ export default function Home() {
               <div>
                 <h4 className="text-slate-900 font-semibold mb-4 text-sm uppercase tracking-wider">{t("support")}</h4>
                 <ul className="space-y-3 text-sm">
-                  <li><a href="mailto:support@captionboost.it" className="text-slate-500 hover:text-primary transition-colors">support@captionboost.it</a></li>
+                  <li><a href="mailto:gabriele.forestieri0912@gmail.com" className="text-slate-500 hover:text-primary transition-colors">gabriele.forestieri0912@gmail.com</a></li>
                 </ul>
               </div>
 

@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
+import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
 import { motion } from "framer-motion";
 import {
-  ArrowLeft,
   Loader2,
   User,
   Lock,
@@ -170,26 +170,24 @@ export default function SettingsPage() {
 
   if (status === "loading" || profileLoading) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <Loader2 className="w-8 h-8 text-primary animate-spin" />
-          <p className="text-slate-500 font-medium">{t("loadingSettings")}</p>
+      <div className="min-h-screen bg-white">
+        <Navbar />
+        <div className="flex items-center justify-center pt-32 pb-20">
+          <div className="flex flex-col items-center gap-3">
+            <Loader2 className="w-8 h-8 text-primary animate-spin" />
+            <p className="text-slate-500 font-medium">{t("loadingSettings")}</p>
+          </div>
         </div>
+        <Footer />
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-white">
-      <div className="max-w-3xl mx-auto px-4 py-8 sm:py-12">
+      <Navbar />
+      <div className="max-w-3xl mx-auto px-4 pt-24 sm:pt-28 pb-8 sm:pb-12">
         <div className="mb-8">
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-primary transition-colors mb-3"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            {t("backHome")}
-          </Link>
           <h1 className="text-3xl sm:text-4xl font-bold text-slate-900 tracking-tight">
             {t("settingsTitle")}
           </h1>
@@ -485,6 +483,7 @@ export default function SettingsPage() {
           )}
         </div>
       </div>
+      <Footer />
     </div>
   );
 }

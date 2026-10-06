@@ -42,7 +42,7 @@ export default function PrivacyPage() {
 
           <h2 className="text-xl font-semibold text-slate-900 mt-8">6. Contact</h2>
           <p>
-            For privacy-related inquiries, contact us at <a href="mailto:support@captionboost.it" className="text-primary hover:underline">support@captionboost.it</a>.
+            For privacy-related inquiries, contact us at <a href="mailto:gabriele.forestieri0912@gmail.com" className="text-primary hover:underline">gabriele.forestieri0912@gmail.com</a>.
           </p>
         </div>
       </div>
