@@ -5,8 +5,10 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Loader2, CheckCircle, KeyRound } from "lucide-react";
 import { Suspense } from "react";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 function ResetPasswordForm() {
+  const { t } = useLanguage();
   const router = useRouter();
   const searchParams = useSearchParams();
   const prefilledEmail = searchParams.get("email") || "";
@@ -25,11 +27,11 @@ function ResetPasswordForm() {
     setMessage("");
 
     if (password !== confirmPassword) {
-      setError("Le password non corrispondono.");
+      setError(t("passwordsNoMatch"));
       return;
     }
     if (password.length < 8) {
-      setError("La password deve avere almeno 8 caratteri.");
+      setError(t("passwordMin8"));
       return;
     }
 
@@ -42,7 +44,7 @@ function ResetPasswordForm() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      setMessage("Password reimpostata con successo! Reindirizzamento al login...");
+      setMessage(t("passwordResetSuccess"));
       setTimeout(() => router.push("/login"), 2000);
     } catch (err) {
       setError((err as Error).message);
@@ -59,7 +61,7 @@ function ResetPasswordForm() {
           className="inline-flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-primary transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
-          Back to home
+          {t("backHome")}
         </Link>
       </div>
 
@@ -69,8 +71,8 @@ function ResetPasswordForm() {
             <div className="w-12 h-12 rounded-xl bg-primary-50 flex items-center justify-center mx-auto mb-4">
               <KeyRound className="w-6 h-6 text-primary" />
             </div>
-            <h1 className="text-3xl font-bold text-slate-900">Reset Password</h1>
-            <p className="text-slate-500 mt-2">Inserisci il codice ricevuto via email</p>
+            <h1 className="text-3xl font-bold text-slate-900">{t("resetPassword")}</h1>
+            <p className="text-slate-500 mt-2">{t("enterCodeByEmail")}</p>
           </div>
 
           {error && (
@@ -88,7 +90,7 @@ function ResetPasswordForm() {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label htmlFor="resetEmail" className="block text-sm font-medium text-slate-700 mb-1">
-                  Email
+                  {t("email")}
                 </label>
                 <input
                   id="resetEmail"
@@ -103,7 +105,7 @@ function ResetPasswordForm() {
 
               <div>
                 <label htmlFor="resetCode" className="block text-sm font-medium text-slate-700 mb-1">
-                  Codice di reset
+                  {t("resetCodeLabel")}
                 </label>
                 <input
                   id="resetCode"
@@ -120,7 +122,7 @@ function ResetPasswordForm() {
 
               <div>
                 <label htmlFor="resetPassword" className="block text-sm font-medium text-slate-700 mb-1">
-                  Nuova password
+                  {t("newPasswordLabel")}
                 </label>
                 <input
                   id="resetPassword"
@@ -136,7 +138,7 @@ function ResetPasswordForm() {
 
               <div>
                 <label htmlFor="resetConfirm" className="block text-sm font-medium text-slate-700 mb-1">
-                  Confirm new password
+                  {t("confirmNewPassword")}
                 </label>
                 <input
                   id="resetConfirm"
@@ -158,10 +160,10 @@ function ResetPasswordForm() {
                 {loading ? (
                   <span className="inline-flex items-center gap-2">
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    Resetting...
+                    {t("resetting")}
                   </span>
                 ) : (
-                  "Reset password"
+                  t("resetPassword")
                 )}
               </button>
             </form>
@@ -169,7 +171,7 @@ function ResetPasswordForm() {
 
           <p className="mt-6 text-center text-sm text-slate-500">
             <Link href="/forgot-password" className="text-primary hover:text-primary font-medium transition-colors">
-              Richiedi un nuovo codice
+              {t("requestNewCode")}
             </Link>
           </p>
         </div>

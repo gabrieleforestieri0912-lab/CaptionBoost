@@ -6,8 +6,10 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { createBrowserSupabase } from "@/lib/supabase-browser";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 export default function SignupPage() {
+  const { t } = useLanguage();
   const router = useRouter();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -21,12 +23,12 @@ export default function SignupPage() {
     setError("");
 
     if (password !== confirmPassword) {
-      setError("Passwords do not match");
+      setError(t("passwordsNoMatch"));
       return;
     }
 
     if (password.length < 8) {
-      setError("Password must be at least 8 characters");
+      setError(t("passwordMin8"));
       return;
     }
 
@@ -41,7 +43,7 @@ export default function SignupPage() {
       });
 
       if (error) {
-        setError(error.message || "Registration failed");
+        setError(error.message || t("registrationFailed"));
         return;
       }
 
@@ -49,10 +51,10 @@ export default function SignupPage() {
         router.push("/");
         router.refresh();
       } else {
-        setError("Registrazione completata! Controlla la tua email per confermare l'account.");
+        setError(t("registrationSuccess"));
       }
     } catch (err) {
-      setError("An error occurred. Please try again.");
+      setError(t("genericError"));
     } finally {
       setLoading(false);
     }
@@ -69,7 +71,7 @@ export default function SignupPage() {
       });
       if (error) setError(error.message);
     } catch (err) {
-      setError("An error occurred. Please try again.");
+      setError(t("genericError"));
     }
   };
 
@@ -81,15 +83,15 @@ export default function SignupPage() {
           className="inline-flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-primary transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
-          Back to home
+          {t("backHome")}
         </Link>
       </div>
 
       <div className="flex-1 flex items-center justify-center px-4 pb-12">
         <div className="max-w-md w-full bg-white rounded-2xl border border-slate-100 shadow-sm p-6 sm:p-8">
           <div className="text-center mb-8">
-            <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">Create account</h1>
-            <p className="text-slate-500 mt-2">Join CaptionBoost today</p>
+            <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">{t("createAccountTitle")}</h1>
+            <p className="text-slate-500 mt-2">{t("joinToday")}</p>
           </div>
 
           {error && (
@@ -101,7 +103,7 @@ export default function SignupPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label htmlFor="name" className="block text-sm font-medium text-slate-700 mb-1">
-                Full name
+                {t("fullName")}
               </label>
               <input
                 id="name"
@@ -116,7 +118,7 @@ export default function SignupPage() {
 
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-1">
-                Email
+                {t("email")}
               </label>
               <input
                 id="email"
@@ -131,7 +133,7 @@ export default function SignupPage() {
 
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-slate-700 mb-1">
-                Password
+                {t("passwordLabel")}
               </label>
               <input
                 id="password"
@@ -146,7 +148,7 @@ export default function SignupPage() {
 
             <div>
               <label htmlFor="confirmPassword" className="block text-sm font-medium text-slate-700 mb-1">
-                Confirm password
+                {t("confirmPasswordLabel")}
               </label>
               <input
                 id="confirmPassword"
@@ -164,7 +166,7 @@ export default function SignupPage() {
               disabled={loading}
               className="w-full py-3 bg-primary hover:bg-primary text-white rounded-xl font-bold transition-all shadow-lg shadow-primary/25 hover:shadow-primary/40 disabled:opacity-60 text-sm sm:text-base"
             >
-              {loading ? "Creating account..." : "Create Account"}
+              {loading ? t("creatingAccount") : t("createAccountBtn")}
             </button>
           </form>
 
@@ -174,7 +176,7 @@ export default function SignupPage() {
                   <div className="w-full border-t border-slate-200" />
                 </div>
                 <div className="relative flex justify-center text-sm">
-                  <span className="px-2 bg-white text-slate-400">Or continue with</span>
+                  <span className="px-2 bg-white text-slate-400">{t("orContinueWith")}</span>
                 </div>
               </div>
 
@@ -183,14 +185,14 @@ export default function SignupPage() {
                 className="mt-4 w-full inline-flex items-center justify-center gap-3 px-4 py-3 border border-slate-200 rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-all font-medium text-slate-700 text-sm sm:text-base"
               >
                 <Image src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="" width={20} height={20} className="w-5 h-5" unoptimized />
-                Sign up with Google
+                {t("signUpGoogle")}
               </button>
             </div>
 
           <p className="mt-6 text-center text-sm text-slate-500">
-            Already have an account?{" "}
+            {t("alreadyHaveAccount")}{" "}
             <Link href="/login" className="font-medium text-primary hover:text-primary transition-colors">
-              Sign in
+              {t("signInLink")}
             </Link>
           </p>
         </div>

@@ -144,7 +144,7 @@ export default function PricingSection({
                 onClick={toggleBilling}
                 className="relative w-14 h-8 bg-slate-200 rounded-full transition-all focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 hover:bg-slate-300"
                 style={{ backgroundColor: isAnnual ? '#4C94FF' : '' }}
-                aria-label="Switch to annual billing"
+                aria-label={t("switchAnnualBilling")}
               >
                 <span
                   className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full shadow-lg transform transition-transform duration-200 ${
@@ -212,7 +212,7 @@ export default function PricingSection({
                 {plan.suggested && (
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2 inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full bg-primary text-white shadow-lg shadow-primary/30">
                     <Star className="w-3 h-3 fill-current" />
-                    {plan.badge || 'Consigliato'}
+                    {plan.badge || t("recommendedBadge")}
                   </div>
                 )}
 

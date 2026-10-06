@@ -26,9 +26,9 @@ import {
 } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 
-function formatDate(dateString: string) {
+function formatDate(dateString: string, locale: string) {
   const date = new Date(dateString);
-  return date.toLocaleDateString("it-IT", {
+  return date.toLocaleDateString(locale === "it" ? "it-IT" : "en-US", {
     day: "numeric",
     month: "long",
     year: "numeric",
@@ -74,6 +74,7 @@ const PLAN_NAMES: Record<string, string> = {
 };
 
 function TranslationQuotaCard({ plan }: { plan: PlanInfo }) {
+  const { t } = useLanguage();
   const isPaid = plan.subscriptionStatus === "active" && plan.plan !== "free";
   const planName = PLAN_NAMES[plan.plan] || plan.plan || "Free";
   const used = Number(plan.translationsUsed || 0);
@@ -103,7 +104,7 @@ function TranslationQuotaCard({ plan }: { plan: PlanInfo }) {
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="font-bold text-slate-900">Traduzioni del mese</h2>
+              <h2 className="font-bold text-slate-900">{t("monthlyTranslations")}</h2>
               <span
                 className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
                   isPaid
@@ -111,15 +112,15 @@ function TranslationQuotaCard({ plan }: { plan: PlanInfo }) {
                     : "bg-slate-100 text-slate-600 border border-slate-200"
                 }`}
               >
-                Piano {planName}
+                {t("planLabel")} {planName}
               </span>
             </div>
             <p className="text-sm text-slate-500 mt-0.5">
               {isUnlimited
-                ? `Hai traduzioni illimitate con il piano ${planName}.`
+                ? t("quotaUnlimited").replace("{plan}", planName)
                 : used >= max
-                ? "Hai esaurito il limite mensile del piano Free."
-                : `Hai usato ${used} di ${max} traduzioni questo mese.`}
+                ? t("quotaExhaustedFree")
+                : `${t("quotaUsedPrefix")} ${used} ${t("quotaUsedMiddle")} ${max} ${t("quotaUsedSuffix")}`}
             </p>
           </div>
         </div>
@@ -131,7 +132,7 @@ function TranslationQuotaCard({ plan }: { plan: PlanInfo }) {
               : "bg-primary text-white shadow-lg shadow-primary/25 hover:shadow-primary/40"
           }`}
         >
-          {isPaid ? "Gestisci piano" : "Passa a Premium"}
+          {isPaid ? t("managePlan") : t("upgradePremium")}
           <ArrowRight className="w-4 h-4" />
         </Link>
       </div>
@@ -152,8 +153,8 @@ function TranslationQuotaCard({ plan }: { plan: PlanInfo }) {
             }`}
           >
             {exhausted
-              ? "Il limite si azzera automaticamente il primo giorno del mese. Passa a Premium per traduzioni illimitate."
-              : `Ti restano ${remaining} traduzioni questo mese.`}
+              ? t("limitResetNote")
+              : `${t("remainingPrefix")} ${remaining} ${t("remainingSuffix")}`}
           </p>
         </div>
       )}
@@ -415,11 +416,11 @@ export default function AccountPage() {
                             </span>
                             <span className="inline-flex items-center gap-1">
                               <Subtitles className="w-3 h-3" />
-                              {sub.lines.length} righe
+                              {sub.lines.length} {t("linesWord")}
                             </span>
                             <span className="inline-flex items-center gap-1">
                               <Clock className="w-3 h-3" />
-                              {formatDate(sub.updatedAt)}
+                              {formatDate(sub.updatedAt, language)}
                             </span>
                           </div>
                         </div>
@@ -438,7 +439,7 @@ export default function AccountPage() {
                               target="_blank"
                               rel="noopener noreferrer"
                               className="p-2 rounded-lg text-slate-400 hover:text-primary hover:bg-primary-50 transition-all"
-                              title="Apri video"
+                              title={t("openVideo")}
                             >
                               <ExternalLink className="w-4 h-4" />
                             </a>

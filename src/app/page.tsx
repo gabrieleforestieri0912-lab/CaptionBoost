@@ -209,7 +209,7 @@ export default function Home() {
                       {showUserMenu && (
                         <div className="absolute right-0 mt-2 w-56 bg-white border border-slate-100 rounded-2xl shadow-2xl py-2 z-50 ring-1 ring-slate-900/5">
                           <div className="px-4 py-3 border-b border-slate-50 mb-1">
-                            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Account</p>
+                            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{t("account")}</p>
                             <p className="text-sm font-bold text-slate-900 truncate">{session.email}</p>
                           </div>
                           <Link href="/settings" className="block px-4 py-2 text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-50">
@@ -514,7 +514,7 @@ export default function Home() {
               </div>
 
               <div>
-                <h4 className="text-slate-900 font-semibold mb-4 text-sm uppercase tracking-wider">Legal</h4>
+                <h4 className="text-slate-900 font-semibold mb-4 text-sm uppercase tracking-wider">{t("legalTitle")}</h4>
                 <ul className="space-y-3 text-sm">
                   <li><Link href="/privacy" className="text-slate-500 hover:text-primary transition-colors">{t("privacy")}</Link></li>
                   <li><Link href="/terms" className="text-slate-500 hover:text-primary transition-colors">{t("terms")}</Link></li>

@@ -115,7 +115,7 @@ export default function SettingsPage() {
     setError("");
 
     if (passwordForm.newPassword.length < 8) {
-      setError("The new password must be at least 8 characters.");
+      setError(t("newPasswordMin8"));
       return;
     }
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
@@ -136,7 +136,7 @@ export default function SettingsPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Unable to change password");
       setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
-      setMessage("Password cambiata con successo.");
+      setMessage(t("passwordChanged"));
     } catch (err) {
       setError((err as Error).message || "Unable to change password");
     } finally {
@@ -186,12 +186,12 @@ export default function SettingsPage() {
             className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-primary transition-colors mb-3"
           >
             <ArrowLeft className="w-4 h-4" />
-            Back to home
+            {t("backHome")}
           </Link>
           <h1 className="text-3xl sm:text-4xl font-bold text-slate-900 tracking-tight">
-            Impostazioni
+            {t("settingsTitle")}
           </h1>
-          <p className="text-slate-500 mt-1">Gestisci il tuo profilo, lingua e preferenze.</p>
+          <p className="text-slate-500 mt-1">{t("manageProfilePrefs")}</p>
         </div>
 
         {error && (
@@ -220,7 +220,7 @@ export default function SettingsPage() {
             </div>
             <div>
               <h2 className="text-xl font-bold text-slate-900">{t("profile")}</h2>
-              <p className="text-sm text-slate-500">Modifica il tuo nome pubblico</p>
+              <p className="text-sm text-slate-500">{t("editPublicName")}</p>
             </div>
           </div>
           <form onSubmit={handleProfileSave} className="space-y-5">
@@ -298,19 +298,19 @@ export default function SettingsPage() {
               <Lock className="w-5 h-5 text-primary" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-slate-900">Sicurezza</h2>
-              <p className="text-sm text-slate-500">Cambia la tua password</p>
+              <h2 className="text-xl font-bold text-slate-900">{t("securityTitle")}</h2>
+              <p className="text-sm text-slate-500">{t("changePasswordDesc")}</p>
             </div>
           </div>
           {!profile.hasPassword ? (
             <p className="text-sm text-slate-500 bg-slate-50 rounded-xl p-4">
-              Questo account utilizza l&apos;accesso sociale. Il cambio password non è disponibile.
+              {t("socialAccountNote")}
             </p>
           ) : (
             <form onSubmit={handlePasswordSave} className="space-y-5">
               <div>
                 <label htmlFor="currentPassword" className="block text-sm font-medium text-slate-700 mb-1.5">
-                  Password attuale
+                  {t("currentPasswordLabel")}
                 </label>
                 <input
                   id="currentPassword"
@@ -323,7 +323,7 @@ export default function SettingsPage() {
               </div>
               <div>
                 <label htmlFor="newPassword" className="block text-sm font-medium text-slate-700 mb-1.5">
-                  Nuova password
+                  {t("newPasswordLabel")}
                 </label>
                 <input
                   id="newPassword"
@@ -359,7 +359,7 @@ export default function SettingsPage() {
                 ) : (
                   <Lock className="w-4 h-4" />
                 )}
-                {passwordSaving ? "Aggiornamento..." : "Aggiorna password"}
+                {passwordSaving ? t("updatingBtn") : t("updatePasswordBtn")}
               </button>
             </form>
           )}
@@ -371,8 +371,8 @@ export default function SettingsPage() {
               <MessageSquare className="w-5 h-5 text-primary" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-slate-900">Feedback</h2>
-              <p className="text-sm text-slate-500">Aiutaci a migliorare CaptionBoost</p>
+              <h2 className="text-xl font-bold text-slate-900">{t("feedbackTitle")}</h2>
+              <p className="text-sm text-slate-500">{t("helpImprove")}</p>
             </div>
           </div>
 
@@ -385,14 +385,14 @@ export default function SettingsPage() {
               <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-3">
                 <Send className="w-6 h-6 text-primary" />
               </div>
-              <p className="font-bold text-slate-900">Grazie per il tuo feedback!</p>
-              <p className="text-sm text-slate-500 mt-1">Lo utilizzeremo per migliorare l&apos;esperienza.</p>
+              <p className="font-bold text-slate-900">{t("thanksFeedback")}</p>
+              <p className="text-sm text-slate-500 mt-1">{t("feedbackUseNote")}</p>
             </motion.div>
           ) : (
             <form onSubmit={handleFeedbackSubmit} className="space-y-5">
               <div>
                 <label htmlFor="feedbackType" className="block text-sm font-medium text-slate-700 mb-1.5">
-                  Tipo
+                  {t("typeLabel")}
                 </label>
                 <select
                   id="feedbackType"
@@ -400,16 +400,16 @@ export default function SettingsPage() {
                   onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setFeedback((prev) => ({ ...prev, type: e.target.value }))}
                   className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-white text-slate-900 focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none transition"
                 >
-                  <option value="general">Suggerimento generale</option>
-                  <option value="bug">Segnalazione bug</option>
+                  <option value="general">{t("generalSuggestion")}</option>
+                  <option value="bug">{t("bugReport")}</option>
                   <option value="feature">{t("featureRequest")}</option>
-                  <option value="translation">Problema di traduzione</option>
+                  <option value="translation">{t("translationIssue")}</option>
                 </select>
               </div>
 
               <div>
                 <label htmlFor="feedbackRating" className="block text-sm font-medium text-slate-700 mb-1.5">
-                  Valutazione
+                  {t("ratingLabel")}
                 </label>
                 <div className="flex items-center gap-1">
                   {[1, 2, 3, 4, 5].map((star) => (
@@ -428,11 +428,11 @@ export default function SettingsPage() {
                   ))}
                   {feedback.rating > 0 && (
                     <span className="ml-2 text-sm text-slate-500">
-                      {feedback.rating === 1 && "Scarso"}
-                      {feedback.rating === 2 && "Mediocre"}
-                      {feedback.rating === 3 && "Buono"}
-                      {feedback.rating === 4 && "Molto buono"}
-                      {feedback.rating === 5 && "Eccellente"}
+                      {feedback.rating === 1 && t("ratingPoor")}
+                      {feedback.rating === 2 && t("ratingFair")}
+                      {feedback.rating === 3 && t("ratingGood")}
+                      {feedback.rating === 4 && t("ratingVeryGood")}
+                      {feedback.rating === 5 && t("ratingExcellent")}
                     </span>
                   )}
                 </div>
@@ -440,7 +440,7 @@ export default function SettingsPage() {
 
               <div>
                 <label htmlFor="feedbackMessage" className="block text-sm font-medium text-slate-700 mb-1.5">
-                  Il tuo messaggio
+                  {t("yourMessageLabel")}
                 </label>
                 <textarea
                   id="feedbackMessage"
@@ -449,7 +449,7 @@ export default function SettingsPage() {
                   onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setFeedback((prev) => ({ ...prev, message: e.target.value }))}
                   required
                   minLength={3}
-                  placeholder="Scrivi qui il tuo feedback, suggerimento o segnalazione..."
+                  placeholder={t("feedbackPlaceholder")}
                   className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-white text-slate-900 focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none transition resize-none"
                 />
               </div>

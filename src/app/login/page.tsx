@@ -6,8 +6,10 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { createBrowserSupabase } from "@/lib/supabase-browser";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 export default function LoginPage() {
+  const { t } = useLanguage();
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -17,7 +19,7 @@ export default function LoginPage() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("error") === "oauth") {
-      setError("Accesso con Google non riuscito. Riprova.");
+      setError(t("oauthFailedRetry"));
     }
   }, []);
 
@@ -34,7 +36,7 @@ export default function LoginPage() {
       });
 
       if (error) {
-        setError("Invalid email or password");
+        setError(t("invalidCredentials"));
       } else {
         const callbackUrl =
           new URLSearchParams(window.location.search).get("callbackUrl") || "/";
@@ -42,7 +44,7 @@ export default function LoginPage() {
         router.refresh();
       }
     } catch (err) {
-      setError("An error occurred. Please try again.");
+      setError(t("genericError"));
     } finally {
       setLoading(false);
     }
@@ -59,7 +61,7 @@ export default function LoginPage() {
       });
       if (error) setError(error.message);
     } catch (err) {
-      setError("An error occurred. Please try again.");
+      setError(t("genericError"));
     }
   };
 
@@ -71,15 +73,15 @@ export default function LoginPage() {
           className="inline-flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-primary transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
-          Back to home
+          {t("backHome")}
         </Link>
       </div>
 
       <div className="flex-1 flex items-center justify-center px-4 pb-12">
         <div className="max-w-md w-full bg-white rounded-2xl border border-slate-100 shadow-sm p-8">
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-slate-900">Welcome back</h1>
-            <p className="text-slate-500 mt-2">Sign in to your CaptionBoost account</p>
+            <h1 className="text-3xl font-bold text-slate-900">{t("welcomeBack")}</h1>
+            <p className="text-slate-500 mt-2">{t("signInAccount")}</p>
           </div>
 
           {error && (
@@ -91,7 +93,7 @@ export default function LoginPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-1">
-                Email
+                {t("email")}
               </label>
               <input
                 id="email"
@@ -106,7 +108,7 @@ export default function LoginPage() {
 
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-slate-700 mb-1">
-                Password
+                {t("passwordLabel")}
               </label>
               <input
                 id="password"
@@ -124,7 +126,7 @@ export default function LoginPage() {
                 href="/forgot-password"
                 className="text-sm text-primary hover:text-primary font-medium transition-colors"
               >
-                Forgot password?
+                {t("forgotPassword")}
               </Link>
             </div>
 
@@ -133,7 +135,7 @@ export default function LoginPage() {
               disabled={loading}
               className="w-full py-3 bg-primary hover:bg-primary text-white rounded-xl font-bold transition-all shadow-lg shadow-primary/25 hover:shadow-primary/40 disabled:opacity-60 text-sm sm:text-base"
             >
-              {loading ? "Signing in..." : "Sign In"}
+              {loading ? t("signingIn") : t("signInBtn")}
             </button>
           </form>
 
@@ -143,7 +145,7 @@ export default function LoginPage() {
                   <div className="w-full border-t border-slate-200" />
                 </div>
                 <div className="relative flex justify-center text-sm">
-                  <span className="px-2 bg-white text-slate-400">Or continue with</span>
+                  <span className="px-2 bg-white text-slate-400">{t("orContinueWith")}</span>
                 </div>
               </div>
 
@@ -152,14 +154,14 @@ export default function LoginPage() {
                 className="mt-4 w-full inline-flex items-center justify-center gap-3 px-4 py-3 border border-slate-200 rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-all font-medium text-slate-700 text-sm sm:text-base"
               >
                 <Image src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="" width={20} height={20} className="w-5 h-5" unoptimized />
-                Sign in with Google
+                {t("signInGoogle")}
               </button>
             </div>
 
           <p className="mt-6 text-center text-sm text-slate-500">
-            Don&apos;t have an account?{" "}
+            {t("dontHaveAccount")}{" "}
             <Link href="/signup" className="font-medium text-primary hover:text-primary transition-colors">
-              Sign up
+              {t("signUpLink")}
             </Link>
           </p>
         </div>

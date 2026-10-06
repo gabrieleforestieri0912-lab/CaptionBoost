@@ -73,15 +73,40 @@ const PLANS_IT: Record<string, Partial<Plan>> = {
   free: {
     description: 'Inizia a tradurre con le funzioni base.',
     cta: 'Inizia gratis',
+    features: [
+      '50 traduzioni / mese',
+      'Lingue supportate: IT, EN, ES, FR, DE',
+      'Preset sottotitoli base',
+      'Export SRT/VTT limitato',
+      'Supporto community',
+    ],
   },
   pro: {
     description: 'Perfetto per creator e traduttori che pubblicano regolarmente.',
     cta: 'Scegli Starter',
+    features: [
+      'Traduzioni illimitate',
+      'Priorità AI (elaborazione 2x più veloce)',
+      'Tutti i formati di export (SRT, VTT, ASS, SBV)',
+      'Archiviazione cloud 180 giorni',
+      'Accesso API + webhook',
+      'Sincronizzazione multi-dispositivo',
+      'Supporto prioritario 24/7',
+    ],
   },
   team: {
     description: 'Per agenzie e aziende con spazi di lavoro condivisi.',
     cta: 'Scegli Pro',
     badge: 'Più popolare',
+    features: [
+      'Tutto incluso dallo Starter',
+      '5 utenti inclusi (aggiuntivi a $4/mese)',
+      'Workspace centralizzato e permessi',
+      'Log di audit e report avanzati',
+      'Branding white-label',
+      'SLA 99,9%',
+      'Supporto dedicato via chat + email',
+    ],
   },
 }
 
