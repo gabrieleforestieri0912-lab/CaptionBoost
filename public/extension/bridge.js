@@ -9,8 +9,38 @@ window.addEventListener('message', (event) => {
   const data = event.data;
   if (!data || data.source !== 'captionboost-webapp') return;
 
-  if (data.action === 'fetchCaptions') {
+  if (data.action === 'syncSubtitleSettings' || data.action === 'getSubtitleSettings') {
     const requestId = ++requestIdCounter;
+    const msg = { action: data.action };
+    if (data.settings && typeof data.settings === 'object') msg.settings = data.settings;
+    chrome.runtime.sendMessage(msg, (response) => {
+      if (chrome.runtime.lastError) {
+        window.postMessage(
+          {
+            source: 'captionboost-extension',
+            action: data.action + 'Result',
+            requestId,
+            success: false,
+            error: chrome.runtime.lastError.message,
+          },
+          '*'
+        );
+        return;
+      }
+      window.postMessage(
+        {
+          source: 'captionboost-extension',
+          action: data.action + 'Result',
+          requestId,
+          ...(response || { success: false }),
+        },
+        '*'
+      );
+    });
+    return;
+  }
+
+  if (data.action === 'fetchCaptions') {    const requestId = ++requestIdCounter;
     pendingRequests.set(requestId, data);
 
     chrome.runtime.sendMessage(

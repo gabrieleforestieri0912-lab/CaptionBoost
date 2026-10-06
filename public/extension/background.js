@@ -242,6 +242,53 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     });
     return true;
   }
+
+  // --- Sync impostazioni sottotitoli dalla web app ---------------------------
+  // La pagina Impostazioni del sito invia le preferenze di stile tramite
+  // bridge.js; le salviamo nelle stesse chiavi usate da popup/settings page.
+  if (request.action === 'syncSubtitleSettings') {
+    const allowed = [
+      'outputLanguage', 'showCaptions', 'showOriginalCaptions', 'translationNotes',
+      'originalSize', 'originalWeight', 'originalColor',
+      'translatedSize', 'translatedWeight', 'translatedColor',
+      'captionPosition', 'captionBackground', 'captionRadius',
+      'captionPadding', 'captionHorizontalMargin',
+    ];
+    const payload = {};
+    const incoming = (request.settings && typeof request.settings === 'object') ? request.settings : {};
+    allowed.forEach((key) => {
+      if (incoming[key] !== undefined) payload[key] = incoming[key];
+    });
+    if (payload.outputLanguage) payload.translateTo = payload.outputLanguage;
+    chrome.storage.sync.set(payload, () => {
+      sendResponse({ success: true, saved: Object.keys(payload) });
+    });
+    return true;
+  }
+
+  if (request.action === 'getSubtitleSettings') {
+    const defaults = {
+      outputLanguage: 'it',
+      showCaptions: true,
+      showOriginalCaptions: true,
+      translationNotes: false,
+      originalSize: '1.0',
+      originalWeight: '400',
+      originalColor: '#ffffff',
+      translatedSize: '1.0',
+      translatedWeight: '500',
+      translatedColor: '#7dd3fc',
+      captionPosition: 'bottom',
+      captionBackground: 'rgba(0,0,0,0.85)',
+      captionRadius: '10px',
+      captionPadding: '8px',
+      captionHorizontalMargin: '10%',
+    };
+    chrome.storage.sync.get(defaults, (result) => {
+      sendResponse({ success: true, settings: result });
+    });
+    return true;
+  }
 });
 
 /**
